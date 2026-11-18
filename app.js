@@ -94,19 +94,47 @@
     return headers;
   }
 
-  async function apiFetch(path, options = {}) {
-    const res = await fetch(path, {
-      ...options,
-      headers: {
-        ...getAuthHeaders(),
-        ...(options.headers || {}),
-      },
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok && !data.error) {
-      throw new Error(`HTTP ${res.status}`);
+  const FALLBACK_SERVER_URL = "http://78.154.103.37:14370";
+  let resolvedApiBase = "";
+
+  function getApiBasesToTry() {
+    const bases = [];
+    if (resolvedApiBase) bases.push(resolvedApiBase);
+    if (window.location.protocol !== "file:") {
+      if (!bases.includes("")) bases.push("");
     }
-    return data;
+    if (window.location.origin !== FALLBACK_SERVER_URL && !bases.includes(FALLBACK_SERVER_URL)) {
+      bases.push(FALLBACK_SERVER_URL);
+    }
+    return bases;
+  }
+
+  async function apiFetch(path, options = {}) {
+    const bases = getApiBasesToTry();
+    let lastErr = null;
+    for (const base of bases) {
+      try {
+        const res = await fetch(`${base}${path}`, {
+          ...options,
+          headers: {
+            ...getAuthHeaders(),
+            ...(options.headers || {}),
+          },
+        });
+        if (res.status === 404 && base === "" && bases.length > 1) {
+          continue;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok && !data.error) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        resolvedApiBase = base;
+        return data;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr || new Error("Немає зв'язку з сервером");
   }
 
   function formatCountdown(deadlineMs, status) {
@@ -253,7 +281,7 @@
           }
           ${
             task.submissionsCount > 0
-              ? `<a class="tg-btn tg-btn-secondary" href="/api/tasks/archive?taskId=${encodeURIComponent(task.id)}" target="_blank">📦 ZIP-архів</a>`
+              ? `<a class="tg-btn tg-btn-secondary" href="${resolvedApiBase}/api/tasks/archive?taskId=${encodeURIComponent(task.id)}" target="_blank">📦 ZIP-архів</a>`
               : ""
           }
         </div>
