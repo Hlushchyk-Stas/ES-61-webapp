@@ -2,151 +2,213 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Тест зв'язку Mini App + Сервер</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>ЕС-61 · Бот-архіватор</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      margin: 0;
-      padding: 16px;
-      background: var(--tg-theme-bg-color, #111827);
-      color: var(--tg-theme-text-color, #f9fafb);
-    }
-    .card {
-      background: var(--tg-theme-secondary-bg-color, #1f2937);
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 12px;
-    }
-    label {
-      display: block;
-      font-size: 13px;
-      margin-bottom: 6px;
-      opacity: 0.85;
-    }
-    input {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #4b5563;
-      background: #111827;
-      color: #f9fafb;
-      margin-bottom: 10px;
-      font-size: 14px;
-    }
-    button {
-      width: 100%;
-      padding: 11px;
-      border: none;
-      border-radius: 8px;
-      background: var(--tg-theme-button-color, #2563eb);
-      color: var(--tg-theme-button-text-color, #ffffff);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 6px;
-    }
-    pre {
-      background: #0b1020;
-      color: #a7f3d0;
-      padding: 10px;
-      border-radius: 8px;
-      overflow-x: auto;
-      font-size: 12px;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-  </style>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("tg_archiver_theme");
+        if (saved === "light" || saved === "dark") {
+          document.documentElement.setAttribute("data-theme", saved);
+          return;
+        }
+        var tgScheme = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.colorScheme;
+        if (tgScheme === "light" || tgScheme === "dark") {
+          document.documentElement.setAttribute("data-theme", tgScheme);
+          return;
+        }
+        var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "light");
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <div class="card">
-    <h3 style="margin-top:0;">1. Дані з Telegram</h3>
-    <div id="tg-user">Перевірка середовища Telegram...</div>
+  <div class="app-shell">
+    <!-- Telegram-style Top Bar -->
+    <header class="tg-header">
+      <div class="tg-header-left">
+        <div class="tg-avatar-badge" id="groupBadge">ЕС</div>
+        <div class="tg-header-titles">
+          <div class="tg-header-title" id="headerTitle">Розклад ЕС-61</div>
+          <div class="tg-header-subtitle" id="headerSubtitle">
+            <span class="status-dot" id="serverStatusDot"></span>
+            <span id="serverStatusText">Підключення...</span>
+          </div>
+        </div>
+      </div>
+      <div class="tg-header-actions">
+        <button class="tg-icon-btn" id="themeToggleBtn" type="button" aria-label="Перемкнути тему" title="Змінити тему">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="tg-main">
+      <!-- TAB 1: SCHEDULE -->
+      <section class="tab-panel active" id="tab-schedule">
+        <div class="tg-section-card schedule-controls-card">
+          <div class="week-switcher" role="tablist" aria-label="Тиждень КПІ">
+            <button class="week-btn active" data-week="1" type="button">
+              <span>1-й тиждень</span>
+              <span class="week-current-pill" id="week1Badge" hidden>зараз</span>
+            </button>
+            <button class="week-btn" data-week="2" type="button">
+              <span>2-й тиждень</span>
+              <span class="week-current-pill" id="week2Badge" hidden>зараз</span>
+            </button>
+          </div>
+          <div class="days-strip" id="daysStrip"></div>
+        </div>
+
+        <div id="lessonsContainer" class="lessons-list">
+          <div class="tg-empty-state">Завантаження розкладу...</div>
+        </div>
+
+        <div class="tg-section-card sync-meta-card">
+          <div class="sync-meta-row">
+            <div>
+              <div class="meta-label">Автосинхронізація</div>
+              <div class="meta-value" id="syncTimeText">Щодня о 00:00 (Київ)</div>
+              <div class="meta-sub" id="lastSyncedText">Останнє оновлення: —</div>
+            </div>
+            <button class="tg-btn tg-btn-secondary" id="syncNowBtn" type="button">
+              Оновити
+            </button>
+          </div>
+          <a class="tg-link-row" href="https://schedule.kpi.ua/?groupId=5895" target="_blank" rel="noopener noreferrer">
+            <span>Відкрити на schedule.kpi.ua</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </a>
+        </div>
+      </section>
+
+      <!-- TAB 2: TASKS & ARCHIVER -->
+      <section class="tab-panel" id="tab-tasks">
+        <div class="tg-section-header">
+          <span>Активні та минулі завдання</span>
+          <span class="tg-pill" id="tasksCountPill">0</span>
+        </div>
+        <div id="tasksContainer" class="tasks-list">
+          <div class="tg-empty-state">Завантаження завдань...</div>
+        </div>
+      </section>
+
+      <!-- TAB 3: PROFILE & SETTINGS -->
+      <section class="tab-panel" id="tab-profile">
+        <div class="tg-section-card profile-hero">
+          <div class="profile-avatar" id="profileAvatar">?</div>
+          <div class="profile-info">
+            <div class="profile-name" id="profileFullName">Гість</div>
+            <div class="profile-username" id="profileUsername">Telegram WebApp</div>
+          </div>
+        </div>
+
+        <div class="tg-section-header">Особисті дані для здачі робіт</div>
+        <form class="tg-section-card tg-form" id="profileForm">
+          <label class="tg-field">
+            <span>Прізвище</span>
+            <input type="text" id="inputLastName" placeholder="Наприклад: Іваненко" autocomplete="family-name" />
+          </label>
+          <div class="tg-divider"></div>
+          <label class="tg-field">
+            <span>Ім'я</span>
+            <input type="text" id="inputFirstName" placeholder="Наприклад: Іван" autocomplete="given-name" />
+          </label>
+          <div class="tg-form-actions">
+            <button class="tg-btn tg-btn-primary" type="submit" id="saveProfileBtn">Зберегти ПІБ</button>
+          </div>
+        </form>
+
+        <div class="tg-section-header">Оформлення</div>
+        <div class="tg-section-card">
+          <div class="theme-option-row">
+            <div>
+              <div class="meta-value">Тема інтерфейсу</div>
+              <div class="meta-sub">Зберігається автоматично для наступних входів</div>
+            </div>
+            <div class="theme-segmented" role="group" aria-label="Вибір теми">
+              <button type="button" class="theme-seg-btn" data-set-theme="light">Світла</button>
+              <button type="button" class="theme-seg-btn" data-set-theme="dark">Темна</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tg-section-header">Сервер</div>
+        <div class="tg-section-card server-info-card">
+          <div class="info-kv"><span>Адреса</span><code id="infoServerAddr">78.154.103.37:14370</code></div>
+          <div class="tg-divider"></div>
+          <div class="info-kv"><span>Бот</span><span id="infoBotUsername">—</span></div>
+          <div class="tg-divider"></div>
+          <div class="info-kv"><span>Режим входу</span><span id="infoAuthMode">—</span></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Telegram-style Bottom Tab Bar -->
+    <nav class="tg-tabbar" aria-label="Навігація">
+      <button class="tg-tab active" data-tab="schedule" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span>Розклад</span>
+      </button>
+      <button class="tg-tab" data-tab="tasks" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>Завдання</span>
+      </button>
+      <button class="tg-tab" data-tab="profile" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span>Профіль</span>
+      </button>
+    </nav>
   </div>
 
-  <div class="card">
-    <h3 style="margin-top:0;">2. Тест зв'язку із сервером</h3>
-    <label for="serverUrl">HTTPS URL вашого сервера:</label>
-    <input id="serverUrl" type="url" value="https://bond-journalists-diffs-crossing.trycloudflare.com" placeholder="https://example.trycloudflare.com" />
-
-    <label for="note">Тестове повідомлення на сервер:</label>
-    <input id="note" type="text" value="Привіт з Telegram Mini App!" />
-
-    <button id="btnPing">Перевірити /api/ping</button>
-    <button id="btnVerify">Надіслати initData на /api/verify</button>
+  <!-- Upload Modal -->
+  <div class="tg-modal-backdrop" id="uploadModal" hidden>
+    <div class="tg-modal">
+      <div class="tg-modal-header">
+        <div class="tg-modal-title" id="uploadModalTitle">Здати роботу</div>
+        <button class="tg-icon-btn" id="closeUploadModalBtn" type="button" aria-label="Закрити">✕</button>
+      </div>
+      <div class="tg-modal-body">
+        <p class="meta-sub" id="uploadTemplateHint"></p>
+        <label class="tg-file-drop" for="uploadFileInput">
+          <input type="file" id="uploadFileInput" />
+          <span id="uploadFileNameLabel">Оберіть файл з пристрою (до 20 МБ)</span>
+        </label>
+        <button class="tg-btn tg-btn-primary tg-btn-full" id="submitFileBtn" type="button" disabled>
+          Надіслати в архів
+        </button>
+      </div>
+    </div>
   </div>
 
-  <div class="card">
-    <h3 style="margin-top:0;">Відповідь сервера</h3>
-    <pre id="output">Натисніть кнопку вище...</pre>
-  </div>
+  <div class="tg-toast" id="toastEl" hidden></div>
 
-  <script>
-    const tg = window.Telegram?.WebApp;
-    if (tg) {
-      tg.ready();
-      tg.expand();
-    }
-
-    const userEl = document.getElementById("tg-user");
-    const serverUrlInput = document.getElementById("serverUrl");
-    const noteInput = document.getElementById("note");
-    const outputEl = document.getElementById("output");
-
-    const savedUrl = localStorage.getItem("miniapp_test_server_url");
-    if (savedUrl) serverUrlInput.value = savedUrl;
-
-    const user = tg?.initDataUnsafe?.user;
-    if (user) {
-      userEl.innerText = `Користувач: ${user.first_name || ""} ${user.last_name || ""} (@${user.username || "без_ніка"}, ID: ${user.id})`;
-    } else {
-      userEl.innerText = "Відкрито у звичайному браузері (не через Telegram) — initData буде порожнім.";
-    }
-
-    function getBaseUrl() {
-      const url = serverUrlInput.value.trim().replace(/\/+$/, "");
-      if (!url) {
-        outputEl.textContent = "Спочатку введіть HTTPS URL сервера.";
-        return null;
-      }
-      localStorage.setItem("miniapp_test_server_url", url);
-      return url;
-    }
-
-    document.getElementById("btnPing").onclick = async () => {
-      const base = getBaseUrl();
-      if (!base) return;
-      outputEl.textContent = "Запит GET /api/ping...";
-      try {
-        const res = await fetch(`${base}/api/ping`);
-        const data = await res.json();
-        outputEl.textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        outputEl.textContent = "Помилка з'єднання: " + err.message;
-      }
-    };
-
-    document.getElementById("btnVerify").onclick = async () => {
-      const base = getBaseUrl();
-      if (!base) return;
-      outputEl.textContent = "Запит POST /api/verify...";
-      try {
-        const res = await fetch(`${base}/api/verify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            initData: tg?.initData || "",
-            note: noteInput.value,
-          }),
-        });
-        const data = await res.json();
-        outputEl.textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        outputEl.textContent = "Помилка з'єднання: " + err.message;
-      }
-    };
-  </script>
+  <script src="/app.js"></script>
 </body>
 </html>
