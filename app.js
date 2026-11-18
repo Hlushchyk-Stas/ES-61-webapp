@@ -98,6 +98,9 @@
   let resolvedApiBase = "";
 
   function getApiBasesToTry() {
+    if (window.location.protocol === "https:") {
+      return [""];
+    }
     const bases = [];
     if (resolvedApiBase) bases.push(resolvedApiBase);
     if (window.location.protocol !== "file:") {
