@@ -29,7 +29,6 @@
 </head>
 <body>
   <div class="app-shell">
-    <!-- Sticky Header + Top Navigation (ніколи не перекривається вотермаркою Netlify знизу) -->
     <header class="tg-topbar-wrap">
       <div class="tg-header">
         <div class="tg-header-left">
@@ -57,10 +56,22 @@
       </div>
 
       <nav class="tg-topnav" aria-label="Навігація">
-        <button class="tg-nav-pill active" data-tab="schedule" type="button"><svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Розклад</span></button>
-        <button class="tg-nav-pill" data-tab="tasks" type="button"><svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>Завдання</span></button>
-        <button class="tg-nav-pill" data-tab="articles" type="button"><svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Артиклі</span></button>
-        <button class="tg-nav-pill" data-tab="profile" type="button"><svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Профіль</span></button>
+        <button class="tg-nav-pill active" data-tab="schedule" type="button">
+          <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span>Розклад</span>
+        </button>
+        <button class="tg-nav-pill" data-tab="tasks" type="button">
+          <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Завдання</span>
+        </button>
+        <button class="tg-nav-pill" data-tab="articles" type="button">
+          <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Артиклі</span>
+        </button>
+        <button class="tg-nav-pill" data-tab="profile" type="button">
+          <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Профіль</span>
+        </button>
       </nav>
     </header>
 
@@ -83,6 +94,17 @@
 
         <div id="lessonsContainer" class="lessons-list">
           <div class="tg-empty-state">Завантаження розкладу...</div>
+        </div>
+
+        <!-- Directory of Lecturers & Subjects -->
+        <div class="tg-section-card directory-card">
+          <div class="sync-meta-row">
+            <div>
+              <div class="meta-label">Довідник</div>
+              <div class="meta-value">Викладачі та предмети</div>
+            </div>
+            <button class="tg-btn tg-btn-secondary tg-btn-sm" id="openDirectoryBtn" type="button">Відкрити</button>
+          </div>
         </div>
 
         <div class="tg-section-card sync-meta-card">
@@ -108,7 +130,7 @@
       <!-- TAB 2: TASKS -->
       <section class="tab-panel" id="tab-tasks">
         <div class="tg-section-header">
-          <span>Завдання та здача в боті</span>
+          <span>Завдання</span>
           <span class="tg-pill" id="tasksCountPill">0</span>
         </div>
         <div id="tasksContainer" class="tasks-list">
@@ -121,7 +143,8 @@
         <div class="tg-section-header">
           <span>Артиклі та гайди</span>
           <button class="tg-btn tg-btn-primary tg-btn-sm" id="newArticleBtn" type="button" hidden>
-            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span>Створити артикль</span>
+            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <span>Створити артикль</span>
           </button>
         </div>
         <div id="articlesContainer" class="articles-list">
@@ -142,7 +165,7 @@
         <div class="tg-section-card" id="manualUserIdCard" hidden>
           <div class="meta-value" style="margin-bottom:4px;">Увійти за Telegram ID</div>
           <div class="meta-sub" style="margin-bottom:10px;">
-            Якщо ви відкрили сайт у звичайному браузері, введіть свій Telegram ID (або відкрийте сайт через бота):
+            Якщо ви відкрили сайт у звичайному браузері, введіть свій Telegram ID:
           </div>
           <div style="display:flex; gap:8px;">
             <input type="text" id="manualUserIdInput" class="tg-input-box" placeholder="Наприклад: 1467992641" inputmode="numeric" />
@@ -162,7 +185,10 @@
             <input type="text" id="inputFirstName" placeholder="Наприклад: Іван" autocomplete="given-name" />
           </label>
           <div class="tg-form-actions">
-            <button class="tg-btn tg-btn-secondary" type="button" id="openBotBtn"><svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span>Відкрити бота</span></button>
+            <button class="tg-btn tg-btn-secondary" type="button" id="openBotBtn">
+              <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              <span>Відкрити бота</span>
+            </button>
             <button class="tg-btn tg-btn-primary" type="submit" id="saveProfileBtn">Зберегти ПІБ</button>
           </div>
         </form>
@@ -170,24 +196,12 @@
         <div class="tg-section-header">Оформлення</div>
         <div class="tg-section-card">
           <div class="theme-option-row">
-            <div>
-              <div class="meta-value">Тема інтерфейсу</div>
-              <div class="meta-sub">Зберігається для наступних входів</div>
-            </div>
+            <div class="meta-value">Тема інтерфейсу</div>
             <div class="theme-segmented" role="group" aria-label="Вибір теми">
               <button type="button" class="theme-seg-btn" data-set-theme="light">Світла</button>
               <button type="button" class="theme-seg-btn" data-set-theme="dark">Темна</button>
             </div>
           </div>
-        </div>
-
-        <div class="tg-section-header">Інформація</div>
-        <div class="tg-section-card server-info-card">
-          <div class="info-kv"><span>Telegram ID</span><code id="infoUserId">—</code></div>
-          <div class="tg-divider"></div>
-          <div class="info-kv"><span>Роль</span><span id="infoUserRole">Користувач</span></div>
-          <div class="tg-divider"></div>
-          <div class="info-kv"><span>Бот</span><span id="infoBotUsername">—</span></div>
         </div>
       </section>
     </main>
@@ -201,7 +215,9 @@
         <div style="display:flex; gap:6px; align-items:center;">
           <button class="tg-btn tg-btn-secondary tg-btn-sm" id="editArticleBtn" type="button" hidden>Редагувати</button>
           <button class="tg-btn tg-btn-danger tg-btn-sm" id="deleteArticleBtn" type="button" hidden>Видалити</button>
-          <button class="tg-icon-btn" id="closeArticleModalBtn" type="button" aria-label="Закрити"><svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          <button class="tg-icon-btn" id="closeArticleModalBtn" type="button" aria-label="Закрити">
+            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
       </div>
 
@@ -220,22 +236,66 @@
           <button type="button" data-cmd="bold" title="Жирний"><b>B</b></button>
           <button type="button" data-cmd="italic" title="Курсив"><i>I</i></button>
           <button type="button" data-cmd="underline" title="Підкреслений"><u>U</u></button>
-          <button type="button" data-cmd="formatBlock" data-val="H2" title="Заголовок">H2</button>
-          <button type="button" data-cmd="formatBlock" data-val="BLOCKQUOTE" title="Цитата"><svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg></button>
-          <button type="button" data-cmd="insertUnorderedList" title="Список">•</button>
-          <button type="button" data-action="code" title="Код">&lt;/&gt;</button>
-          <button type="button" data-action="link" title="Посилання"><svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+          <button type="button" data-action="heading" title="Заголовок H2 (повторно — прибрати)">H2</button>
+          <button type="button" data-action="quote" title="Цитата (як у Telegram)">
+            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg>
+          </button>
+          <button type="button" data-action="list" title="Список">
+            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+          <button type="button" data-action="code" title="Код (моноширинний)">&lt;/&gt;</button>
+          <button type="button" data-cmd="justifyLeft" title="Вирівняти ліворуч">
+            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+          </button>
+          <button type="button" data-cmd="justifyCenter" title="Вирівняти по центру">
+            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/></svg>
+          </button>
+          <button type="button" data-cmd="justifyRight" title="Вирівняти праворуч">
+            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></svg>
+          </button>
+          <button type="button" data-action="link" title="Посилання">
+            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </button>
           <label class="toolbar-file-btn" title="Додати фото">
-            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><input type="file" id="articleImageInput" accept="image/*" hidden />
+            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <input type="file" id="articleImageInput" accept="image/*" hidden />
           </label>
           <button type="button" data-cmd="insertHorizontalRule" title="Розділювач">—</button>
         </div>
         <div id="editArticleBody" class="telegraph-editable" contenteditable="true" data-placeholder="Почніть писати історію або конспект..."></div>
+        <!-- Image move bar (appears when clicking a photo inside editor) -->
+        <div id="articlePhotoControls" class="photo-move-bar" hidden>
+          <span class="meta-sub">Фото:</span>
+          <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" id="movePhotoUpBtn">Вгору</button>
+          <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" id="movePhotoDownBtn">Вниз</button>
+          <button type="button" class="tg-btn tg-btn-danger tg-btn-sm" id="removePhotoBtn">Видалити</button>
+        </div>
         <div class="tg-form-actions" style="margin-top:12px;">
           <button type="button" class="tg-btn tg-btn-secondary" id="cancelArticleEditBtn">Скасувати</button>
           <button type="button" class="tg-btn tg-btn-primary" id="saveArticleBtn">Опублікувати</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Directory Modal (View/Create Lecturers & Subjects) -->
+  <div class="tg-modal-backdrop" id="directoryModal" hidden>
+    <div class="tg-modal tg-modal-large">
+      <div class="tg-modal-header">
+        <div class="tg-modal-title">Викладачі та предмети</div>
+        <button class="tg-icon-btn" id="closeDirectoryModalBtn" type="button" aria-label="Закрити">
+          <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="week-switcher" style="margin-bottom:4px;">
+        <button type="button" class="week-btn active" data-dir-type="lecturer">Викладачі</button>
+        <button type="button" class="week-btn" data-dir-type="subject">Предмети</button>
+      </div>
+      <div id="directoryAdminCreate" class="directory-create-row" hidden>
+        <input type="text" id="newEntityNameInput" class="tg-input-box" placeholder="ПІБ викладача або назва предмета..." />
+        <button type="button" class="tg-btn tg-btn-primary tg-btn-sm" id="createEntityBtn">Додати</button>
+      </div>
+      <div id="directoryList" class="directory-list"></div>
     </div>
   </div>
 
@@ -247,19 +307,32 @@
           <div class="meta-label" id="entityTypeLabel">Профіль викладача</div>
           <div class="tg-modal-title" id="entityProfileName">—</div>
         </div>
-        <button class="tg-icon-btn" id="closeEntityModalBtn" type="button" aria-label="Закрити"><svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <button class="tg-icon-btn" id="closeEntityModalBtn" type="button" aria-label="Закрити">
+          <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
 
       <div id="entityCategoriesList" class="entity-categories-list"></div>
 
-      <!-- Admin Quick-Add Controls -->
       <div id="entityAdminControls" class="entity-admin-controls" hidden>
-        <div class="meta-label" style="margin-bottom:8px;">Додати категорію (лише для адмінів):</div>
+        <div class="meta-label" style="margin-bottom:8px;">Додати категорію:</div>
         <div class="quick-add-grid">
-          <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-add-cat="description"><svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg><span>Опис</span></button>
-          <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-add-cat="contacts"><svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>Контакти</span></button>
-          <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-add-cat="photo"><svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>Фото</span></button>
-          <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-add-cat="custom"><svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Своя категорія</span></button>
+          <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-add-cat="description">
+            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+            <span>Опис</span>
+          </button>
+          <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-add-cat="contacts">
+            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span>Контакти</span>
+          </button>
+          <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-add-cat="photo">
+            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>Фото</span>
+          </button>
+          <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-add-cat="custom">
+            <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Своя категорія</span>
+          </button>
         </div>
         <div class="tg-form-actions" style="margin-top:12px;">
           <button type="button" class="tg-btn tg-btn-primary tg-btn-full" id="saveEntityProfileBtn">Зберегти зміни профілю</button>

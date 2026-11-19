@@ -166,25 +166,28 @@ html[data-theme="dark"] .icon-moon { display: none; }
 
 /* Top Navigation Pills */
 .tg-topnav {
-  display: flex;
-  gap: 6px;
-  padding: 6px 12px 10px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  padding: 6px 10px 10px;
 }
-.tg-topnav::-webkit-scrollbar { display: none; }
 
 .tg-nav-pill {
-  flex: 1 0 auto;
   border: none;
   border-radius: 10px;
-  padding: 7px 11px;
-  font-size: 13px;
+  padding: 7px 4px;
+  font-size: 12px;
   font-weight: 600;
   background: var(--tg-surface-alt);
   color: var(--tg-text-secondary);
   cursor: pointer;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
@@ -590,14 +593,14 @@ html[data-theme="dark"] .icon-moon { display: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
+  padding: 12px 12px 64px;
 }
 .tg-modal-backdrop[hidden] { display: none; }
 
 .tg-modal {
   width: 100%;
   max-width: 660px;
-  max-height: 90vh;
+  max-height: calc(100vh - 80px);
   overflow-y: auto;
   background: var(--tg-surface);
   border-radius: 16px;
@@ -815,4 +818,82 @@ html[data-theme="dark"] .icon-moon { display: none; }
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+
+.telegraph-content blockquote,
+.telegraph-editable blockquote {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--tg-accent);
+  background: var(--tg-accent-soft);
+  border-radius: 4px 10px 10px 4px;
+  color: var(--tg-text);
+  position: relative;
+}
+
+.telegraph-content h2,
+.telegraph-editable h2 {
+  margin: 14px 0 6px;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.telegraph-toolbar {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+  padding: 6px;
+  background: var(--tg-surface-alt);
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.telegraph-toolbar button,
+.toolbar-file-btn {
+  height: 32px;
+  padding: 0;
+}
+
+.telegraph-editable img.selected-photo {
+  outline: 2.5px solid var(--tg-accent);
+  outline-offset: 2px;
+}
+
+.photo-move-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  margin-top: 8px;
+  background: var(--tg-surface-alt);
+  border-radius: 10px;
+}
+
+.directory-create-row {
+  display: flex;
+  gap: 8px;
+}
+
+.directory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.directory-item-btn {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--tg-border);
+  background: var(--tg-surface-alt);
+  color: var(--tg-text);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }

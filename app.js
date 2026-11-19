@@ -308,21 +308,24 @@
 
         const subItemsHtml = grp.items
           .map((item, idx) => {
-            const lecturerBtn = item.lecturer
+            const hasLecturer = Boolean(item.lecturer && item.lecturer.trim());
+            const lecturerBtn = hasLecturer
               ? `<button type="button" class="entity-link-btn" data-open-entity="lecturer" data-entity-name="${escapeAttr(item.lecturer)}">${ICONS.user}<span>${escapeHtml(item.lecturer)}</span></button>`
               : "";
             const roomTag = item.room ? `<span class="lesson-room-tag">${ICONS.pin}<span>${escapeHtml(item.room)}</span></span>` : "";
             const linkTag = item.link
               ? `<a href="${escapeAttr(item.link)}" target="_blank" rel="noopener noreferrer" class="entity-link-btn">${ICONS.link}<span>Пара</span></a>`
               : "";
+            if (!hasLecturer && !roomTag && !linkTag) return "";
             const prefix = grp.items.length > 1 ? `<b>${idx + 1}.</b> ` : "";
             return `
               <div class="lesson-subitem">
-                <div class="lesson-subitem-row">${prefix}${lecturerBtn || "<span>Викладач не вказаний</span>"}</div>
-                ${roomTag || linkTag ? `<div class="lesson-subitem-row">${roomTag}${linkTag}</div>` : ""}
+                ${hasLecturer ? `<div class="lesson-subitem-row">${prefix}${lecturerBtn}</div>` : ""}
+                ${roomTag || linkTag ? `<div class="lesson-subitem-row">${!hasLecturer ? prefix : ""}${roomTag}${linkTag}</div>` : ""}
               </div>
             `;
           })
+          .filter(Boolean)
           .join("");
 
         card.innerHTML = `
@@ -404,12 +407,12 @@
         <div class="task-actions">
           ${
             !isClosed
-              ? `<button class="tg-btn tg-btn-primary" type="button" data-bot-task="${escapeAttr(task.id)}">${ICONS.upload}<span>Здати в боті</span></button>`
+              ? `<button class="tg-btn tg-btn-primary" type="button" data-bot-task="${escapeAttr(task.id)}">${ICONS.upload}<span>Здати</span></button>`
               : ""
           }
           ${
             state.isAdmin && task.submissionsCount > 0
-              ? `<button class="tg-btn tg-btn-secondary" type="button" data-bot-archive="${escapeAttr(task.id)}">${ICONS.archive}<span>Архів у боті</span></button>`
+              ? `<button class="tg-btn tg-btn-secondary" type="button" data-bot-archive="${escapeAttr(task.id)}">${ICONS.archive}<span>Архів</span></button>`
               : ""
           }
         </div>
@@ -489,6 +492,7 @@
     document.getElementById("readArticleTitle").textContent = art.title;
     document.getElementById("readArticleMeta").textContent = `${art.author || "Адміністратор"}${dateStr ? ` · ${dateStr}` : ""}`;
     document.getElementById("readArticleBody").innerHTML = art.contentHtml || "<i>Текст порожній</i>";
+    if (typeof selectEditorPhoto === "function") selectEditorPhoto(null);
     document.getElementById("articleModal").hidden = false;
   }
 
@@ -507,6 +511,7 @@
     document.getElementById("editArticleTitle").value = art ? art.title : "";
     document.getElementById("editArticleAuthor").value = art ? art.author || "" : defaultAuthor;
     document.getElementById("editArticleBody").innerHTML = art ? art.contentHtml || "" : "";
+    if (typeof selectEditorPhoto === "function") selectEditorPhoto(null);
     document.getElementById("articleModal").hidden = false;
   }
 
@@ -637,9 +642,7 @@
     document.getElementById("inputLastName").value = user.lastName || "";
     document.getElementById("inputFirstName").value = user.firstName || "";
 
-    document.getElementById("infoUserId").textContent = isGuest ? "Не розпізнано" : user.userId;
-    document.getElementById("infoUserRole").textContent = state.isAdmin ? "Адміністратор" : "Користувач";
-    document.getElementById("infoBotUsername").textContent = state.botUsername ? `@${state.botUsername}` : "ES61bot";
+
     document.getElementById("adminHeaderPill").hidden = !state.isAdmin;
   }
 
@@ -829,19 +832,135 @@
     });
   });
 
+  function getClosestTagInEditor(tagNames) {
+    const ed = document.getElementById("editArticleBody");
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return null;
+    let node = sel.anchorNode;
+    while (node && node !== ed) {
+      if (node.nodeType === 1 && tagNames.includes(node.tagName)) return node;
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function unwrapElementKeepChildren(el) {
+    if (!el || !el.parentNode) return;
+    const p = document.createElement("p");
+    while (el.firstChild) p.appendChild(el.firstChild);
+    el.parentNode.replaceChild(p, el);
+    const range = document.createRange();
+    range.selectNodeContents(p);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
   document.querySelectorAll("#articleToolbar button[data-action]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const act = btn.getAttribute("data-action");
       const ed = document.getElementById("editArticleBody");
       ed.focus();
-      if (act === "link") {
+
+      if (act === "heading") {
+        const h2 = getClosestTagInEditor(["H2", "H1", "H3"]);
+        if (h2) {
+          document.execCommand("formatBlock", false, "P");
+        } else {
+          document.execCommand("formatBlock", false, "H2");
+        }
+      } else if (act === "quote") {
+        // Не дозволяємо стакати цитату + список
+        const listEl = getClosestTagInEditor(["UL", "OL"]);
+        if (listEl) document.execCommand("insertUnorderedList");
+        const bq = getClosestTagInEditor(["BLOCKQUOTE"]);
+        if (bq) {
+          unwrapElementKeepChildren(bq);
+        } else {
+          document.execCommand("formatBlock", false, "BLOCKQUOTE");
+        }
+      } else if (act === "list") {
+        // Не дозволяємо стакати список + цитату
+        const bq = getClosestTagInEditor(["BLOCKQUOTE"]);
+        if (bq) unwrapElementKeepChildren(bq);
+        document.execCommand("insertUnorderedList");
+      } else if (act === "link") {
         const url = prompt("Введіть посилання (https://...):");
         if (url) document.execCommand("createLink", false, url);
       } else if (act === "code") {
-        const sel = window.getSelection()?.toString() || "код";
-        document.execCommand("insertHTML", false, `<code>${escapeHtml(sel)}</code>`);
+        const codeEl = getClosestTagInEditor(["CODE"]);
+        if (codeEl) {
+          const txt = document.createTextNode(codeEl.textContent || "");
+          codeEl.parentNode.replaceChild(txt, codeEl);
+        } else {
+          const selText = window.getSelection()?.toString();
+          if (selText) {
+            document.execCommand("insertHTML", false, `<code>${escapeHtml(selText)}</code>&nbsp;`);
+          } else {
+            document.execCommand("insertHTML", false, `<code>код</code>&nbsp;`);
+          }
+        }
       }
     });
+  });
+
+  let selectedEditorImg = null;
+  function selectEditorPhoto(img) {
+    document.querySelectorAll("#editArticleBody img.selected-photo").forEach((x) => x.classList.remove("selected-photo"));
+    selectedEditorImg = img || null;
+    const bar = document.getElementById("articlePhotoControls");
+    if (selectedEditorImg) {
+      selectedEditorImg.classList.add("selected-photo");
+      bar.hidden = false;
+    } else {
+      bar.hidden = true;
+    }
+  }
+
+  document.getElementById("editArticleBody").addEventListener("click", (e) => {
+    if (e.target && e.target.tagName === "IMG") {
+      selectEditorPhoto(e.target);
+    } else {
+      selectEditorPhoto(null);
+    }
+  });
+
+  function getImageBlockNode(img) {
+    const ed = document.getElementById("editArticleBody");
+    let node = img;
+    while (node && node.parentNode && node.parentNode !== ed) {
+      node = node.parentNode;
+    }
+    return node;
+  }
+
+  document.getElementById("movePhotoUpBtn").addEventListener("click", () => {
+    if (!selectedEditorImg) return;
+    const block = getImageBlockNode(selectedEditorImg);
+    if (block && block.previousElementSibling) {
+      block.parentNode.insertBefore(block, block.previousElementSibling);
+    }
+  });
+
+  document.getElementById("movePhotoDownBtn").addEventListener("click", () => {
+    if (!selectedEditorImg) return;
+    const block = getImageBlockNode(selectedEditorImg);
+    if (block && block.nextElementSibling) {
+      block.parentNode.insertBefore(block.nextElementSibling, block);
+    }
+  });
+
+  document.getElementById("removePhotoBtn").addEventListener("click", () => {
+    if (!selectedEditorImg) return;
+    const block = getImageBlockNode(selectedEditorImg);
+    if (block && block !== document.getElementById("editArticleBody")) {
+      if (block.tagName === "IMG" || block.textContent.trim() === "") block.remove();
+      else selectedEditorImg.remove();
+    } else {
+      selectedEditorImg.remove();
+    }
+    selectEditorPhoto(null);
   });
 
   document.getElementById("articleImageInput").addEventListener("change", (e) => {
@@ -849,10 +968,17 @@
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      document.getElementById("editArticleBody").focus();
-      document.execCommand("insertImage", false, String(reader.result || ""));
+      const ed = document.getElementById("editArticleBody");
+      ed.focus();
+      const p = document.createElement("p");
+      const img = document.createElement("img");
+      img.src = String(reader.result || "");
+      p.appendChild(img);
+      ed.appendChild(p);
+      selectEditorPhoto(img);
     };
     reader.readAsDataURL(file);
+    e.target.value = "";
   });
 
   document.getElementById("saveArticleBtn").addEventListener("click", async () => {
@@ -948,6 +1074,84 @@
     } finally {
       btn.disabled = false;
     }
+  });
+
+
+  // ==================== DIRECTORY (LECTURERS & SUBJECTS) ====================
+  let activeDirType = "lecturer";
+
+  function collectEntitiesFromScheduleAndProfiles(type) {
+    const names = new Set();
+    const bucket = type === "lecturer" ? "lecturers" : "subjects";
+    Object.keys((state.profiles && state.profiles[bucket]) || {}).forEach((k) => {
+      if (k && k.trim()) names.add(k.trim());
+    });
+    const weeks = state.schedule?.weeks || {};
+    for (const wk of Object.values(weeks)) {
+      for (const dayLessons of Object.values(wk || {})) {
+        for (const l of dayLessons || []) {
+          const val = type === "lecturer" ? l.lecturer : l.name;
+          if (val && String(val).trim()) names.add(String(val).trim());
+        }
+      }
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "uk"));
+  }
+
+  function renderDirectoryList() {
+    document.querySelectorAll("[data-dir-type]").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-dir-type") === activeDirType);
+    });
+    document.getElementById("directoryAdminCreate").hidden = !state.isAdmin;
+
+    const listEl = document.getElementById("directoryList");
+    const items = collectEntitiesFromScheduleAndProfiles(activeDirType);
+    listEl.innerHTML = "";
+
+    if (!items.length) {
+      listEl.innerHTML = '<div class="tg-empty-state">Список порожній</div>';
+      return;
+    }
+
+    const bucket = activeDirType === "lecturer" ? "lecturers" : "subjects";
+    for (const name of items) {
+      const prof = state.profiles?.[bucket]?.[name];
+      const count = prof?.categories?.length || 0;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "directory-item-btn";
+      btn.innerHTML = `<span>${escapeHtml(name)}</span>${count > 0 ? `<span class="tg-pill">${count}</span>` : ""}`;
+      btn.addEventListener("click", () => {
+        document.getElementById("directoryModal").hidden = true;
+        openEntityProfile(activeDirType, name);
+      });
+      listEl.appendChild(btn);
+    }
+  }
+
+  document.getElementById("openDirectoryBtn").addEventListener("click", () => {
+    renderDirectoryList();
+    document.getElementById("directoryModal").hidden = false;
+  });
+  document.getElementById("closeDirectoryModalBtn").addEventListener("click", () => {
+    document.getElementById("directoryModal").hidden = true;
+  });
+  document.querySelectorAll("[data-dir-type]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeDirType = btn.getAttribute("data-dir-type");
+      renderDirectoryList();
+    });
+  });
+  document.getElementById("createEntityBtn").addEventListener("click", () => {
+    const inp = document.getElementById("newEntityNameInput");
+    const name = inp.value.trim();
+    if (!name) {
+      showToast("Введіть назву або ПІБ");
+      return;
+    }
+    inp.value = "";
+    document.getElementById("directoryModal").hidden = true;
+    openEntityProfile(activeDirType, name);
   });
 
   bootstrap();
