@@ -114,6 +114,14 @@
     return escapeHtml(str).replace(/'/g, "&#39;");
   }
 
+  function normalizeUserUrl(raw) {
+    const s = String(raw || "").trim();
+    if (!s) return "";
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s)) return s;
+    if (s.startsWith("//")) return `https:${s}`;
+    return `https://${s}`;
+  }
+
   function resolveMediaUrl(url) {
     if (!url) return "";
     if (/^https?:\/\//i.test(url) || url.startsWith("data:")) return url;
@@ -416,7 +424,7 @@
     document.querySelectorAll(".tab-panel").forEach((panel) => {
       panel.classList.toggle("active", panel.id === `tab-${tabName}`);
     });
-    document.querySelectorAll(".tg-nav-pill").forEach((pill) => {
+    document.querySelectorAll(".tg-tab-item").forEach((pill) => {
       pill.classList.toggle("active", pill.getAttribute("data-route") === `/${tabName}`);
     });
     window.scrollTo(0, 0);
@@ -487,7 +495,7 @@
     if (!art) {
       showLoader(true);
       try {
-        const res = await apiFetch(`/api/article/${encodeURIComponent(slug)}`);
+        const res = await apiFetch(`/api/article?slug=${encodeURIComponent(slug)}`);
         if (res.ok && res.article) {
           art = res.article;
           if (typeof res.isVerified === "boolean") {
@@ -1263,26 +1271,28 @@
       const subText = u.username ? `@${u.username} · ID ${u.userId}` : `ID ${u.userId}`;
 
       let actionsHtml = "";
+      let manageToggleHtml = "";
       if (state.isAdmin && !u.isAdmin) {
         if (state.usersTab === "verified") {
+          manageToggleHtml = `<button type="button" class="mini-icon-btn" data-toggle-u-menu="${escapeAttr(u.userId)}" title="Керувати">•••</button>`;
           actionsHtml = `
-            <div class="user-card-actions">
-              <button type="button" class="tg-btn tg-btn-danger tg-btn-sm" data-u-act="delete" data-u-id="${escapeAttr(u.userId)}">Видалити</button>
-              <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-act="blacklist" data-u-id="${escapeAttr(u.userId)}">У ЧС</button>
+            <div class="user-card-actions" data-u-menu="${escapeAttr(u.userId)}" hidden>
+              <button type="button" class="tg-btn tg-btn-danger tg-btn-sm" data-u-act="delete" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">Видалити акаунт</button>
+              <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-act="blacklist" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">У чорний список</button>
             </div>
           `;
         } else if (state.usersTab === "pending") {
           actionsHtml = `
             <div class="user-card-actions">
-              <button type="button" class="tg-btn tg-btn-success tg-btn-sm" data-u-act="approve" data-u-id="${escapeAttr(u.userId)}">Підтвердити</button>
-              <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-act="reject" data-u-id="${escapeAttr(u.userId)}">Відхилити</button>
-              <button type="button" class="tg-btn tg-btn-danger tg-btn-sm" data-u-act="blacklist" data-u-id="${escapeAttr(u.userId)}">У ЧС</button>
+              <button type="button" class="tg-btn tg-btn-success tg-btn-sm" data-u-act="approve" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">Підтвердити</button>
+              <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-act="reject" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">Відхилити</button>
+              <button type="button" class="tg-btn tg-btn-danger tg-btn-sm" data-u-act="blacklist" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">У ЧС</button>
             </div>
           `;
         } else if (state.usersTab === "blacklisted") {
           actionsHtml = `
             <div class="user-card-actions">
-              <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-act="unblacklist" data-u-id="${escapeAttr(u.userId)}">Винести з ЧС</button>
+              <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-act="unblacklist" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">Винести з ЧС</button>
             </div>
           `;
         }
@@ -1298,6 +1308,7 @@
             </div>
             <div class="meta-sub">${escapeHtml(subText)}</div>
           </div>
+          ${manageToggleHtml}
         </div>
         ${actionsHtml}
       `;
@@ -1305,15 +1316,37 @@
       container.appendChild(card);
     }
 
+    container.querySelectorAll("[data-toggle-u-menu]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const uid = btn.getAttribute("data-toggle-u-menu");
+        const menu = container.querySelector(`[data-u-menu="${uid}"]`);
+        if (menu) menu.hidden = !menu.hidden;
+      });
+    });
+
     container.querySelectorAll("[data-u-act]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const uid = btn.getAttribute("data-u-id");
         const act = btn.getAttribute("data-u-act");
-        const confirms = {
-          delete: "Видалити цього верифікованого учасника?",
-          blacklist: "Занести користувача в чорний список?",
-        };
-        runUserAction(uid, act, confirms[act] || "");
+        const uName = btn.getAttribute("data-u-name") || `ID ${uid}`;
+        if (act === "delete" || act === "blacklist") {
+          openDestructiveConfirmModal({
+            title: act === "delete" ? "Видалення верифікованого акаунта" : "Занесення в чорний список",
+            target: `${uName} (ID: ${uid})`,
+            desc:
+              act === "delete"
+                ? "Учасник втратить доступ до веб-додатку і буде видалений зі списку верифікованих."
+                : "Користувач буде заблокований і не зможе повторно подати заявку на реєстрацію.",
+            checkboxLabel:
+              act === "delete"
+                ? "Підтверджую видалення цього учасника"
+                : "Підтверджую занесення користувача в чорний список",
+            buttonText: act === "delete" ? "Видалити акаунт" : "Занести в ЧС",
+            onConfirm: () => runUserAction(uid, act, ""),
+          });
+          return;
+        }
+        runUserAction(uid, act, "");
       });
     });
   }
@@ -1902,11 +1935,11 @@
       lecturer: document.getElementById("evtLecturerInput").value.trim(),
       room: document.getElementById("evtRoomInput").value.trim(),
       description: document.getElementById("evtDescInput").value.trim(),
-      link: split ? "" : document.getElementById("evtLinkInput").value.trim(),
+      link: split ? "" : normalizeUserUrl(document.getElementById("evtLinkInput").value.trim()),
       subgroups: split
         ? [
-            { name: document.getElementById("evtSg1Name").value.trim(), link: document.getElementById("evtSg1Link").value.trim() },
-            { name: document.getElementById("evtSg2Name").value.trim(), link: document.getElementById("evtSg2Link").value.trim() },
+            { name: document.getElementById("evtSg1Name").value.trim(), link: normalizeUserUrl(document.getElementById("evtSg1Link").value.trim()) },
+            { name: document.getElementById("evtSg2Name").value.trim(), link: normalizeUserUrl(document.getElementById("evtSg2Link").value.trim()) },
           ]
         : [],
     };
@@ -1954,11 +1987,11 @@
           type: document.getElementById("clTypeSelect").value,
           room: document.getElementById("clRoomInput").value.trim(),
           splitSubgroups: split,
-          link: split ? "" : document.getElementById("clLinkInput").value.trim(),
+          link: split ? "" : normalizeUserUrl(document.getElementById("clLinkInput").value.trim()),
           subgroup1Name: document.getElementById("clSg1Name").value.trim(),
-          subgroup1Link: document.getElementById("clSg1Link").value.trim(),
+          subgroup1Link: normalizeUserUrl(document.getElementById("clSg1Link").value.trim()),
           subgroup2Name: document.getElementById("clSg2Name").value.trim(),
-          subgroup2Link: document.getElementById("clSg2Link").value.trim(),
+          subgroup2Link: normalizeUserUrl(document.getElementById("clSg2Link").value.trim()),
         }),
       });
       if (!res.ok) throw new Error(res.error || "Помилка збереження");
@@ -2111,10 +2144,134 @@
     });
   });
 
+  let pendingConfirmFn = null;
+  function openDestructiveConfirmModal({ title, target, desc, checkboxLabel, buttonText, onConfirm }) {
+    pendingConfirmFn = onConfirm;
+    document.getElementById("confirmModalTitle").textContent = title;
+    document.getElementById("confirmModalTarget").textContent = target;
+    document.getElementById("confirmModalDesc").textContent = desc;
+    document.getElementById("confirmModalCheckboxLabel").textContent = checkboxLabel;
+    const cb = document.getElementById("confirmModalCheckbox");
+    const submitBtn = document.getElementById("submitConfirmModalBtn");
+    cb.checked = false;
+    submitBtn.disabled = true;
+    submitBtn.textContent = buttonText || "Підтвердити";
+    document.getElementById("confirmActionModal").hidden = false;
+  }
+
+  function closeConfirmModal() {
+    document.getElementById("confirmActionModal").hidden = true;
+    pendingConfirmFn = null;
+  }
+
+  document.getElementById("closeConfirmModalBtn").addEventListener("click", closeConfirmModal);
+  document.getElementById("cancelConfirmModalBtn").addEventListener("click", closeConfirmModal);
+  document.getElementById("confirmModalCheckbox").addEventListener("change", (e) => {
+    document.getElementById("submitConfirmModalBtn").disabled = !e.target.checked;
+  });
+  document.getElementById("submitConfirmModalBtn").addEventListener("click", async () => {
+    const fn = pendingConfirmFn;
+    closeConfirmModal();
+    if (typeof fn === "function") await fn();
+  });
+
+  // Telegraph-style inline URL/Photo input bar (https:// is NOT required)
+  let inlineBarMode = null; // "link" | "photoUrl"
+  let savedEditorRange = null;
+
+  function saveEditorSelection() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      savedEditorRange = sel.getRangeAt(0).cloneRange();
+    } else {
+      savedEditorRange = null;
+    }
+  }
+
+  function restoreEditorSelection() {
+    const ed = document.getElementById("editArticleBody");
+    ed.focus();
+    if (savedEditorRange) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedEditorRange);
+    }
+  }
+
+  function openTelegraphInlineBar(mode) {
+    saveEditorSelection();
+    inlineBarMode = mode;
+    const bar = document.getElementById("telegraphInlineBar");
+    const inp = document.getElementById("telegraphInlineInput");
+    inp.value = "";
+    inp.placeholder =
+      mode === "photoUrl"
+        ? "Вставте посилання на фото і натисніть Enter"
+        : "Вставте посилання (наприклад, google.com) і натисніть Enter";
+    bar.hidden = false;
+    setTimeout(() => inp.focus(), 10);
+  }
+
+  function closeTelegraphInlineBar() {
+    document.getElementById("telegraphInlineBar").hidden = true;
+    inlineBarMode = null;
+  }
+
+  function applyTelegraphInlineBar() {
+    const raw = document.getElementById("telegraphInlineInput").value.trim();
+    const mode = inlineBarMode;
+    closeTelegraphInlineBar();
+    if (!raw) return;
+    const url = normalizeUserUrl(raw);
+    if (!url) return;
+
+    if (mode === "photoUrl") {
+      insertImageUrlIntoEditor(url);
+      showToast("Фото додано");
+    } else if (mode === "link") {
+      restoreEditorSelection();
+      const sel = window.getSelection();
+      if (sel && sel.toString().trim().length > 0) {
+        document.execCommand("createLink", false, url);
+      } else {
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = raw;
+        const ed = document.getElementById("editArticleBody");
+        if (sel && sel.rangeCount > 0 && ed.contains(sel.anchorNode)) {
+          const range = sel.getRangeAt(0);
+          range.insertNode(a);
+          range.setStartAfter(a);
+          range.collapse(true);
+        } else {
+          ed.appendChild(a);
+        }
+      }
+    }
+  }
+
+  document.getElementById("telegraphInlineApplyBtn").addEventListener("click", applyTelegraphInlineBar);
+  document.getElementById("telegraphInlineCancelBtn").addEventListener("click", closeTelegraphInlineBar);
+  document.getElementById("telegraphInlineInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      applyTelegraphInlineBar();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closeTelegraphInlineBar();
+    }
+  });
+
   document.querySelectorAll("#articleToolbar button[data-action]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const act = btn.getAttribute("data-action");
       const ed = document.getElementById("editArticleBody");
+      if (act === "link" || act === "photoUrl") {
+        openTelegraphInlineBar(act);
+        return;
+      }
       ed.focus();
       if (act === "heading") {
         const h2 = getClosestTagInEditor(["H2", "H1", "H3"]);
@@ -2129,16 +2286,6 @@
         const bq = getClosestTagInEditor(["BLOCKQUOTE"]);
         if (bq) unwrapElementKeepChildren(bq);
         document.execCommand("insertUnorderedList");
-      } else if (act === "link") {
-        const url = prompt("Введіть посилання (https://...):");
-        if (url) document.execCommand("createLink", false, url);
-      } else if (act === "imageUrl") {
-        const url = prompt("Вставте пряме посилання на зображення (https://...):");
-        if (url && /^https?:\/\//i.test(url.trim())) {
-          insertImageUrlIntoEditor(url.trim());
-        } else if (url) {
-          showToast("Посилання має починатися з http:// або https://");
-        }
       }
     });
   });
@@ -2170,24 +2317,7 @@
     selectEditorPhoto(null);
   });
 
-  document.getElementById("articleImageInput").addEventListener("change", async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    e.target.value = "";
-    try {
-      showToast("Завантаження зображення...");
-      const dataUrl = await compressImageFile(file, 1280, 0.82);
-      const res = await apiFetch("/api/media/upload", {
-        method: "POST",
-        body: JSON.stringify({ dataUrl, folder: "articles" }),
-      });
-      if (!res.ok || !res.url) throw new Error(res.error || "Помилка завантаження фото");
-      insertImageUrlIntoEditor(res.url);
-      showToast("Фото додано за посиланням!");
-    } catch (err) {
-      showToast(err.message);
-    }
-  });
+
 
   document.getElementById("saveArticleBtn").addEventListener("click", async () => {
     const title = document.getElementById("editArticleTitle").value.trim();
