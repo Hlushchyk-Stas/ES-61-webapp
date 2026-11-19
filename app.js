@@ -233,7 +233,11 @@
     const bases = [];
     if (resolvedApiBase) bases.push(resolvedApiBase);
     if (window.location.protocol !== "file:" && !bases.includes("")) bases.push("");
-    if (window.location.origin !== FALLBACK_SERVER_URL && !bases.includes(FALLBACK_SERVER_URL)) {
+    if (
+      window.location.protocol !== "https:" &&
+      window.location.origin !== FALLBACK_SERVER_URL &&
+      !bases.includes(FALLBACK_SERVER_URL)
+    ) {
       bases.push(FALLBACK_SERVER_URL);
     }
     return bases;
@@ -254,7 +258,7 @@
               ...(options.headers || {}),
             },
           },
-          12000,
+          path.startsWith("/api/ai/") ? 35000 : 18000,
         );
         if (res.status === 404 && base === "" && bases.length > 1) {
           continue;
@@ -2008,7 +2012,7 @@
 
   document.getElementById("articleHomeBtn").addEventListener("click", () => {
     haptic("light");
-    navigateTo("/home");
+    navigateTo("/articles");
   });
 
   // Guest Gate Listeners

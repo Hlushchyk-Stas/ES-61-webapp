@@ -524,7 +524,7 @@ html[data-theme="dark"] .icon-moon { display: none; }
 
 .lesson-badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 6px; }
 .lesson-badge.type-lec { background: var(--tg-accent-soft); color: var(--tg-accent); }
-.lesson-badge.type-prac { background: var(--tg-green-soft); color: var(--tg-green); }
+.lesson-badge.type-prac { background: var(--tg-red-soft); color: var(--tg-red); }
 .lesson-badge.type-lab { background: var(--tg-orange-soft); color: var(--tg-orange); }
 .lesson-badge.type-exam { background: var(--tg-red-soft); color: var(--tg-red); }
 .lesson-badge.type-other { background: var(--tg-purple-soft); color: var(--tg-purple); }
@@ -1123,7 +1123,7 @@ html[data-theme="dark"] .icon-moon { display: none; }
 
 .tile-ai {
   background: rgba(42, 171, 238, 0.14);
-  color: var(--accent);
+  color: var(--tg-accent);
 }
 
 .lesson-join-btn {
@@ -1136,7 +1136,7 @@ html[data-theme="dark"] .icon-moon { display: none; }
   font-weight: 600;
   text-decoration: none;
   background: rgba(42, 171, 238, 0.14);
-  color: var(--accent);
+  color: var(--tg-accent);
   border: 1px solid rgba(42, 171, 238, 0.28);
   transition: background 0.15s ease, transform 0.1s ease;
 }
@@ -1151,7 +1151,7 @@ html[data-theme="dark"] .icon-moon { display: none; }
   gap: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--tg-accent);
 }
 
 .home-status-badge.live {
@@ -1159,7 +1159,7 @@ html[data-theme="dark"] .icon-moon { display: none; }
 }
 
 .home-status-badge.ended {
-  color: var(--text-muted);
+  color: var(--tg-text-secondary);
 }
 
 .home-live-dot {
@@ -1180,7 +1180,7 @@ html[data-theme="dark"] .icon-moon { display: none; }
 
 .task-card-selected {
   background: rgba(42, 171, 238, 0.12) !important;
-  border-color: var(--accent) !important;
+  border-color: var(--tg-accent) !important;
 }
 
 .task-card-selected.is-closed-task {
@@ -1209,7 +1209,7 @@ html[data-theme="dark"] .icon-moon { display: none; }
 
 .task-longpress-hint {
   font-size: 12px;
-  color: var(--accent);
+  color: var(--tg-accent);
   margin-top: 6px;
   font-weight: 500;
 }
@@ -1248,16 +1248,16 @@ html[data-theme="dark"] .icon-moon { display: none; }
 
 .ai-msg-user {
   align-self: flex-end;
-  background: var(--accent);
+  background: var(--tg-accent);
   color: #fff;
   border-bottom-right-radius: 4px;
 }
 
 .ai-msg-bot {
   align-self: flex-start;
-  background: var(--bg-secondary);
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: var(--tg-surface-alt);
+  color: var(--tg-text);
+  border: 1px solid var(--tg-border);
   border-bottom-left-radius: 4px;
 }
 
@@ -1265,7 +1265,7 @@ html[data-theme="dark"] .icon-moon { display: none; }
   display: flex;
   gap: 8px;
   padding-top: 10px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--tg-border);
 }
 
 .ai-chat-form .tg-input-box {

@@ -366,8 +366,8 @@
 
   <!-- TELEGRAPH-STYLE STANDALONE ARTICLE READER (/:slug) -->
   <section id="articleReaderPage" class="telegraph-reader-page" hidden>
-    <button type="button" class="telegraph-home-fab" id="articleHomeBtn" hidden aria-label="На головну" title="На головну">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <button type="button" class="telegraph-home-fab" id="articleHomeBtn" hidden aria-label="Назад до артиклів" title="Назад до артиклів">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
     </button>
     <article class="telegraph-reader-container">
       <div class="telegraph-subject-tag" id="readArticleSubject" hidden></div>
@@ -735,7 +735,6 @@
 
   <div class="tg-toast" id="toastEl" hidden></div>
 
-  <script src="/app.js"></script>
   <!-- MODAL: AI ASSISTANT -->
   <div class="tg-modal-backdrop" id="aiAssistantModal" hidden>
     <div class="tg-modal tg-modal-lg ai-modal-box">
@@ -756,6 +755,8 @@
       </form>
     </div>
   </div>
+
+  <script src="/app.js"></script>
 
 </body>
 </html>
