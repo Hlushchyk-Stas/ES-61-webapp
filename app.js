@@ -165,8 +165,8 @@
   function getApiBasesToTry() {
     const bases = [];
     const customBase = getConfiguredApiBase();
-    if (customBase) bases.push(customBase);
-    if (resolvedApiBase && !bases.includes(resolvedApiBase)) bases.push(resolvedApiBase);
+    if (resolvedApiBase) bases.push(resolvedApiBase);
+    if (customBase && !bases.includes(customBase)) bases.push(customBase);
     if (!window.location.hostname.endsWith("github.io") && window.location.protocol !== "file:") {
       if (!bases.includes("")) bases.push("");
     }
@@ -182,13 +182,13 @@
     let lastErr = null;
     for (const base of bases) {
       try {
-        const res = await fetch(`${base}${path}`, {
+        const res = await fetchWithTimeout(`${base}${path}`, {
           ...options,
           headers: {
             ...getAuthHeaders(hasBody),
             ...(options.headers || {}),
           },
-        });
+        }, 8000);
         if (res.status === 404 && base === "" && bases.length > 1) {
           continue;
         }
@@ -749,18 +749,35 @@
     document.getElementById("headerTitle").textContent = titles[tabName] || "Бот-архіватор";
   }
 
+  async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      return await fetch(url, { ...options, signal: ctrl.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function loadDynamicApiUrlFromRepo() {
     if (window.location.protocol === "file:") return;
-    try {
-      const res = await fetch(`./api-url.json?t=${Date.now()}`, { cache: "no-store" });
-      if (!res.ok) return;
-      const cfg = await res.json().catch(() => ({}));
-      if (cfg && cfg.apiUrl && /^https?:\/\//i.test(cfg.apiUrl)) {
-        const clean = String(cfg.apiUrl).trim().replace(/\/+$/, "");
-        resolvedApiBase = clean;
-        try { localStorage.setItem(API_BASE_STORAGE_KEY, clean); } catch {}
-      }
-    } catch {}
+    const candidates = [
+      `https://raw.githubusercontent.com/Hlushchyk-Stas/ES-61-webapp/main/api-url.json?t=${Date.now()}`,
+      `./api-url.json?t=${Date.now()}`,
+    ];
+    for (const url of candidates) {
+      try {
+        const res = await fetchWithTimeout(url, { cache: "no-store" }, 5000);
+        if (!res.ok) continue;
+        const cfg = await res.json().catch(() => ({}));
+        if (cfg && cfg.apiUrl && /^https?:\/\//i.test(cfg.apiUrl)) {
+          const clean = String(cfg.apiUrl).trim().replace(/\/+$/, "");
+          resolvedApiBase = clean;
+          try { localStorage.setItem(API_BASE_STORAGE_KEY, clean); } catch {}
+          return;
+        }
+      } catch {}
+    }
   }
 
   async function bootstrap() {
