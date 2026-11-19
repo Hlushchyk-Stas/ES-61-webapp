@@ -13,6 +13,19 @@ module.exports = (req, res) => {
     }
   }
 
+  let bodyBuf = null;
+  if (req.method && !["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase()) && req.body !== undefined) {
+    if (Buffer.isBuffer(req.body)) {
+      bodyBuf = req.body;
+    } else if (typeof req.body === "string") {
+      bodyBuf = Buffer.from(req.body, "utf8");
+    } else {
+      bodyBuf = Buffer.from(JSON.stringify(req.body), "utf8");
+      if (!headers["content-type"]) headers["content-type"] = "application/json; charset=utf-8";
+    }
+    headers["content-length"] = String(bodyBuf.length);
+  }
+
   const proxyReq = http.request(
     {
       hostname: BACKEND_HOST,
@@ -20,7 +33,7 @@ module.exports = (req, res) => {
       path: targetPath,
       method: req.method || "GET",
       headers,
-      timeout: 20000,
+      timeout: 25000,
     },
     (proxyRes) => {
       const chunks = [];
@@ -28,9 +41,14 @@ module.exports = (req, res) => {
       proxyRes.on("end", () => {
         const buf = Buffer.concat(chunks);
         res.statusCode = proxyRes.statusCode || 200;
-        res.setHeader("Content-Type", proxyRes.headers["content-type"] || "application/json; charset=utf-8");
+        const ct = proxyRes.headers["content-type"] || "application/json; charset=utf-8";
+        res.setHeader("Content-Type", ct);
         res.setHeader("Access-Control-Allow-Origin", "*");
-        res.setHeader("Cache-Control", "no-store");
+        if (targetPath.startsWith("/api/media/") && res.statusCode === 200) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else {
+          res.setHeader("Cache-Control", "no-store");
+        }
         if (proxyRes.headers["content-disposition"]) {
           res.setHeader("Content-Disposition", proxyRes.headers["content-disposition"]);
         }
@@ -52,9 +70,8 @@ module.exports = (req, res) => {
     res.end(JSON.stringify({ ok: false, error: "Таймаут сервера 78.154.103.37:14370" }));
   });
 
-  if (req.body) {
-    const bodyStr = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
-    proxyReq.write(bodyStr);
+  if (bodyBuf && bodyBuf.length > 0) {
+    proxyReq.write(bodyBuf);
   }
   proxyReq.end();
 };
