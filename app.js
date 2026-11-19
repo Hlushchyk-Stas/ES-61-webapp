@@ -749,10 +749,25 @@
     document.getElementById("headerTitle").textContent = titles[tabName] || "Бот-архіватор";
   }
 
+  async function loadDynamicApiUrlFromRepo() {
+    if (window.location.protocol === "file:") return;
+    try {
+      const res = await fetch(`./api-url.json?t=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const cfg = await res.json().catch(() => ({}));
+      if (cfg && cfg.apiUrl && /^https?:\/\//i.test(cfg.apiUrl)) {
+        const clean = String(cfg.apiUrl).trim().replace(/\/+$/, "");
+        resolvedApiBase = clean;
+        try { localStorage.setItem(API_BASE_STORAGE_KEY, clean); } catch {}
+      }
+    } catch {}
+  }
+
   async function bootstrap() {
     const dot = document.getElementById("serverStatusDot");
     const statusText = document.getElementById("serverStatusText");
     try {
+      await loadDynamicApiUrlFromRepo();
       const data = await apiFetch("/api/bootstrap");
       if (!data.ok) throw new Error(data.error || "Помилка завантаження");
 
