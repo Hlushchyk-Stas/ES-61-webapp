@@ -163,6 +163,14 @@
             <div class="home-tile-title">Профіль</div>
             <div class="home-tile-sub">Аватар, ПІБ і тема</div>
           </button>
+
+          <button type="button" class="home-tile home-tile-wide" id="homeOpenAiBtn">
+            <div class="home-tile-icon tile-ai">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3v-3a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/><circle cx="9.5" cy="11.5" r="1"/><circle cx="14.5" cy="11.5" r="1"/></svg>
+            </div>
+            <div class="home-tile-title">ШІ Помічник</div>
+            <div class="home-tile-sub">Питання по артиклях, предметах і викладачах</div>
+          </button>
         </div>
 
         <div id="homeRecentSection"></div>
@@ -272,17 +280,17 @@
       <!-- ROUTE: /profile -->
       <section class="tab-panel" id="tab-profile">
         <div class="tg-section-card profile-hero">
-          <label class="profile-avatar-wrap" title="Змінити аватарку">
+          <label class="profile-avatar-wrap" for="profileAvatarInput" title="Змінити аватарку">
             <div class="avatar-circle avatar-xl" id="profileAvatar">?</div>
             <span class="avatar-edit-badge">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
             </span>
-            <input type="file" id="profileAvatarInput" accept="image/*" hidden />
           </label>
+          <input type="file" id="profileAvatarInput" class="sr-file-input" accept="image/*" />
           <div class="profile-info">
             <div class="profile-name" id="profileFullName">Користувач</div>
             <div class="profile-username" id="profileUsername">—</div>
-            <div class="meta-sub" style="margin-top:2px;">Натисніть на аватарку, щоб змінити фото</div>
+            <label for="profileAvatarInput" class="tg-btn tg-btn-secondary tg-btn-sm" style="margin-top:6px;">Змінити аватарку</label>
           </div>
         </div>
 
@@ -297,12 +305,17 @@
             <span>Ім'я</span>
             <input type="text" id="inputFirstName" placeholder="Наприклад: Іван" autocomplete="given-name" />
           </label>
+          <div class="tg-divider"></div>
+          <label class="tg-field">
+            <span>День народження</span>
+            <input type="date" id="inputBirthday" />
+          </label>
           <div class="tg-form-actions">
             <button class="tg-btn tg-btn-secondary" type="button" id="openBotBtn">
               <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               <span>Бот</span>
             </button>
-            <button class="tg-btn tg-btn-primary" type="submit" id="saveProfileBtn">Зберегти ПІБ</button>
+            <button class="tg-btn tg-btn-primary" type="submit" id="saveProfileBtn">Зберегти</button>
           </div>
         </form>
 
@@ -723,5 +736,26 @@
   <div class="tg-toast" id="toastEl" hidden></div>
 
   <script src="/app.js"></script>
+  <!-- MODAL: AI ASSISTANT -->
+  <div class="tg-modal-backdrop" id="aiAssistantModal" hidden>
+    <div class="tg-modal tg-modal-lg ai-modal-box">
+      <div class="tg-modal-header">
+        <div class="tg-modal-title">ШІ Помічник ЕС-61</div>
+        <button type="button" class="tg-icon-btn" id="closeAiModalBtn" aria-label="Закрити">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="ai-chat-messages" id="aiChatMessages">
+        <div class="ai-msg ai-msg-bot">
+          Привіт! Задай мені будь-яке питання щодо предметів, викладачів, розкладу або конспектів і артиклів групи ЕС-61.
+        </div>
+      </div>
+      <form class="ai-chat-form" id="aiAskForm">
+        <input type="text" id="aiQuestionInput" class="tg-input-box" placeholder="Наприклад: Яка РСО з фізики або хто веде практику?" maxlength="1500" autocomplete="off" />
+        <button type="submit" class="tg-btn tg-btn-primary" id="aiSendBtn">Запитати</button>
+      </form>
+    </div>
+  </div>
+
 </body>
 </html>

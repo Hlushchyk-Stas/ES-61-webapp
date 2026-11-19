@@ -637,28 +637,87 @@
     document.getElementById("homeTileArticlesSub").textContent = `${(state.articles || []).length} публікацій`;
     document.getElementById("homeTileUsersSub").textContent = `${(state.users || []).length} верифікованих`;
 
-    // Today's lessons summary
-    const todayLessons =
-      sched && sched.weeks && sched.weeks[String(sched.currentWeek || 1)]?.[sched.todayDayName]
-        ? sched.weeks[String(sched.currentWeek || 1)][sched.todayDayName]
-        : [];
+    // Today's effective lessons (respecting special dates + one-time events)
+    const todayDateStr = sched?.todayDateKyiv || "";
+    let todayLessons = Array.isArray(sched?.todayLessons) ? sched.todayLessons : null;
+    if (!todayLessons) {
+      const rawToday =
+        sched && sched.weeks && sched.weeks[String(sched.currentWeek || 1)]?.[sched.todayDayName]
+          ? sched.weeks[String(sched.currentWeek || 1)][sched.todayDayName]
+          : [];
+      todayLessons = rawToday.filter((l) => {
+        if (l.hasSpecialDates || (Array.isArray(l.dates) && l.dates.length > 0)) {
+          return todayDateStr && Array.isArray(l.dates) && l.dates.includes(todayDateStr);
+        }
+        return true;
+      });
+      for (const ev of sched?.oneTimeEvents || []) {
+        if (todayDateStr && ev.date === todayDateStr) todayLessons.push(ev);
+      }
+    }
     const groupedToday = groupLessonsBySlotAndSubject(todayLessons);
     document.getElementById("homeTileScheduleSub").textContent =
       groupedToday.length > 0 ? `Сьогодні пар: ${groupedToday.length}` : "Сьогодні пар немає";
 
     const nextWrap = document.getElementById("homeNextLessonWrap");
+    const nowMin = getKyivNowMinutes();
+    const parseMin = (t) => {
+      const m = String(t || "").match(/(\d{1,2}):(\d{2})/);
+      return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+    };
+
     if (groupedToday.length > 0) {
-      const first = groupedToday[0];
-      const linksHtml = renderLessonLinksHtml(first);
+      let currentLesson = null;
+      let upcomingLesson = null;
+      for (const grp of groupedToday) {
+        const sMin = parseMin(grp.timeStart);
+        const eMin = parseMin(grp.timeEnd);
+        if (sMin !== null && eMin !== null) {
+          if (nowMin >= sMin && nowMin < eMin) {
+            currentLesson = grp;
+            break;
+          }
+          if (nowMin < sMin && !upcomingLesson) {
+            upcomingLesson = grp;
+          }
+        } else if (!upcomingLesson) {
+          upcomingLesson = grp;
+        }
+      }
+
+      if (currentLesson) {
+        const linksHtml = renderLessonLinksHtml(currentLesson);
+        nextWrap.innerHTML = `
+          <div class="tg-section-card next-lesson-card">
+            <div class="home-status-badge live"><span class="home-live-dot"></span><span>Зараз йде пара · ${escapeHtml(currentLesson.timeStart || "")}${currentLesson.timeEnd ? `–${escapeHtml(currentLesson.timeEnd)}` : ""}</span></div>
+            <div class="meta-value" style="margin-top:4px;">${escapeHtml(currentLesson.name)} <span class="meta-sub">(${escapeHtml(currentLesson.type || "Пара")})</span></div>
+            ${linksHtml ? `<div class="lesson-links-row" style="margin-top:8px;">${linksHtml}</div>` : ""}
+          </div>
+        `;
+      } else if (upcomingLesson) {
+        const linksHtml = renderLessonLinksHtml(upcomingLesson);
+        nextWrap.innerHTML = `
+          <div class="tg-section-card next-lesson-card">
+            <div class="home-status-badge"><span>Наступна пара · ${escapeHtml(upcomingLesson.timeStart || "")}${upcomingLesson.timeEnd ? `–${escapeHtml(upcomingLesson.timeEnd)}` : ""}</span></div>
+            <div class="meta-value" style="margin-top:4px;">${escapeHtml(upcomingLesson.name)} <span class="meta-sub">(${escapeHtml(upcomingLesson.type || "Пара")})</span></div>
+            ${linksHtml ? `<div class="lesson-links-row" style="margin-top:8px;">${linksHtml}</div>` : ""}
+          </div>
+        `;
+      } else {
+        nextWrap.innerHTML = `
+          <div class="tg-section-card next-lesson-card">
+            <div class="home-status-badge ended"><span>Розклад на сьогодні</span></div>
+            <div class="meta-value" style="margin-top:4px;">Пари на сьогодні закінчились</div>
+          </div>
+        `;
+      }
+    } else {
       nextWrap.innerHTML = `
         <div class="tg-section-card next-lesson-card">
-          <div class="meta-label">Сьогодні за розкладом · ${escapeHtml(first.timeStart || "")}${first.timeEnd ? `–${escapeHtml(first.timeEnd)}` : ""}</div>
-          <div class="meta-value" style="margin-top:3px;">${escapeHtml(first.name)} <span class="meta-sub">(${escapeHtml(first.type || "Пара")})</span></div>
-          ${linksHtml ? `<div class="lesson-links-row">${linksHtml}</div>` : ""}
+          <div class="home-status-badge ended"><span>Розклад на сьогодні</span></div>
+          <div class="meta-value" style="margin-top:4px;">Сьогодні пар немає</div>
         </div>
       `;
-    } else {
-      nextWrap.innerHTML = "";
     }
 
     const recentEl = document.getElementById("homeRecentSection");
@@ -719,13 +778,50 @@
     return groups;
   }
 
+  function getKyivNowMinutes() {
+    try {
+      const fmt = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/Kyiv",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      const parts = fmt.formatToParts(new Date());
+      const h = Number(parts.find((p) => p.type === "hour")?.value || 0);
+      const m = Number(parts.find((p) => p.type === "minute")?.value || 0);
+      return h * 60 + m;
+    } catch {
+      const d = new Date();
+      return d.getHours() * 60 + d.getMinutes();
+    }
+  }
+
+  function getCalendarDateForWeekDay(sched, selectedWeek, selectedDay) {
+    if (!sched || !sched.todayDateKyiv) return null;
+    const m = String(sched.todayDateKyiv).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const todayUtc = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0));
+    const todayDow = (todayUtc.getUTCDay() + 6) % 7; // 0=Mon..6=Sun
+    const targetDow = DAYS_ORDER.indexOf(selectedDay);
+    if (targetDow < 0) return null;
+    const curWeek = Number(sched.currentWeek || 1);
+    const selWeek = Number(selectedWeek || 1);
+    const weekOffsetDays = selWeek === curWeek ? 0 : 7;
+    const diffDays = targetDow - todayDow + weekOffsetDays;
+    const targetUtc = new Date(todayUtc.getTime() + diffDays * 86400000);
+    const y = targetUtc.getUTCFullYear();
+    const mo = String(targetUtc.getUTCMonth() + 1).padStart(2, "0");
+    const da = String(targetUtc.getUTCDate()).padStart(2, "0");
+    return `${y}-${mo}-${da}`;
+  }
+
   function renderLessonLinksHtml(grp) {
     if (grp.subgroups && grp.subgroups.length > 0) {
       return grp.subgroups
         .filter((sg) => sg && sg.link)
         .map(
           (sg) =>
-            `<a href="${escapeAttr(sg.link)}" target="_blank" rel="noopener noreferrer" class="tg-btn tg-btn-secondary tg-btn-sm">${ICONS.link}<span>${escapeHtml(sg.name || "Підгрупа")}</span></a>`,
+            `<a href="${escapeAttr(sg.link)}" target="_blank" rel="noopener noreferrer" class="lesson-join-btn">${ICONS.link}<span>${escapeHtml(sg.name || "Підгрупа")}</span></a>`,
         )
         .join("");
     }
@@ -733,7 +829,7 @@
     return links
       .map(
         (lnk, idx) =>
-          `<a href="${escapeAttr(lnk)}" target="_blank" rel="noopener noreferrer" class="tg-btn tg-btn-secondary tg-btn-sm">${ICONS.link}<span>${links.length > 1 ? `Посилання ${idx + 1}` : "Приєднатися"}</span></a>`,
+          `<a href="${escapeAttr(lnk)}" target="_blank" rel="noopener noreferrer" class="lesson-join-btn">${ICONS.link}<span>${links.length > 1 ? `Пара (${idx + 1})` : "Перейти на пару"}</span></a>`,
       )
       .join("");
   }
@@ -825,8 +921,25 @@
       oneTimeWrap.innerHTML = "";
     }
 
-    const rawLessons =
+    const selectedDateStr = getCalendarDateForWeekDay(sched, state.selectedWeek, state.selectedDay);
+    const todayDateStr = sched.todayDateKyiv || "";
+    const rawLessonsAll =
       (sched.weeks && sched.weeks[state.selectedWeek] && sched.weeks[state.selectedWeek][state.selectedDay]) || [];
+    const rawLessons = rawLessonsAll
+      .map((l) => {
+        const futureDates = Array.isArray(l.dates)
+          ? l.dates.filter((d) => !todayDateStr || String(d) >= todayDateStr)
+          : [];
+        return { ...l, dates: futureDates };
+      })
+      .filter((l) => {
+        // Якщо у пари є спецдати — показувати її лише для відповідної дати
+        if (l.hasSpecialDates || l.dates.length > 0) {
+          if (!selectedDateStr) return l.dates.length > 0;
+          return l.dates.includes(selectedDateStr);
+        }
+        return true;
+      });
     const grouped = groupLessonsBySlotAndSubject(rawLessons);
 
     const container = document.getElementById("lessonsContainer");
@@ -1035,8 +1148,10 @@
 
     for (const task of tasks) {
       const card = document.createElement("div");
-      card.className = "task-card";
       const isClosed = task.status === "closed";
+      const isSelected = state.isAdmin && state.selectedTaskId === task.id;
+      card.className = `task-card${isSelected ? " task-card-selected" : ""}${isClosed ? " is-closed-task" : ""}`;
+      card.setAttribute("data-task-id", task.id);
 
       const badges = [];
       badges.push(
@@ -1046,12 +1161,21 @@
         badges.push(`<span class="task-status-pill submitted">${ICONS.check} Здано</span>`);
       }
 
+      const closeBtnHtml = isSelected
+        ? `<button type="button" class="task-longpress-close-btn" data-task-close-del="${escapeAttr(task.id)}" title="${isClosed ? "Видалити завдання назавжди" : "Закрити завдання"}">✕</button>`
+        : "";
+      const selectedHintHtml = isSelected
+        ? `<div class="task-longpress-hint">${isClosed ? "Натисніть ✕ щоб видалити назавжди" : "Натисніть ✕ щоб закрити завдання"}</div>`
+        : "";
+
       card.innerHTML = `
+        ${closeBtnHtml}
         ${task.subject ? `<span class="subject-tag-pill">${escapeHtml(task.subject)}</span>` : ""}
-        <div class="task-top">
+        <div class="task-top" style="${isSelected ? "padding-right:34px;" : ""}">
           <div class="task-title">${escapeHtml(task.title)}</div>
           <div style="display:flex; gap:5px; flex-wrap:wrap;">${badges.join("")}</div>
         </div>
+        ${selectedHintHtml}
         <div class="meta-sub">
           <span class="meta-sub-inline">${ICONS.clock}<span>${escapeHtml(formatCountdown(task.deadlineMs, task.status))}</span></span> · <span class="meta-sub-inline">${ICONS.file}<span>Здано робіт: <b>${task.submissionsCount}</b></span></span>
         </div>
@@ -1078,8 +1202,63 @@
           }
         </div>
       `;
+      if (state.isAdmin) {
+        let pressTimer = null;
+        let startX = 0;
+        let startY = 0;
+        const cancelPress = () => {
+          if (pressTimer) {
+            clearTimeout(pressTimer);
+            pressTimer = null;
+          }
+        };
+        card.addEventListener("pointerdown", (ev) => {
+          if (ev.target.closest("button, a, input, select")) return;
+          startX = ev.clientX;
+          startY = ev.clientY;
+          cancelPress();
+          pressTimer = setTimeout(() => {
+            pressTimer = null;
+            haptic("medium");
+            state.selectedTaskId = state.selectedTaskId === task.id ? null : task.id;
+            renderTasks();
+          }, 1000);
+        });
+        card.addEventListener("pointermove", (ev) => {
+          if (!pressTimer) return;
+          if (Math.abs(ev.clientX - startX) > 10 || Math.abs(ev.clientY - startY) > 10) {
+            cancelPress();
+          }
+        });
+        card.addEventListener("pointerup", cancelPress);
+        card.addEventListener("pointercancel", cancelPress);
+        card.addEventListener("pointerleave", cancelPress);
+      }
       container.appendChild(card);
     }
+
+    container.querySelectorAll("[data-task-close-del]").forEach((btn) => {
+      btn.addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        const tid = btn.getAttribute("data-task-close-del");
+        btn.disabled = true;
+        try {
+          const res = await apiFetch("/api/tasks/close-or-delete", {
+            method: "POST",
+            body: JSON.stringify({ taskId: tid }),
+          });
+          if (!res.ok) throw new Error(res.error || "Помилка");
+          state.tasks = res.tasks || [];
+          state.selectedTaskId = null;
+          renderTasks();
+          renderHome();
+          showToast(res.action === "deleted" ? "Завдання видалено назавжди" : "Завдання закрито");
+        } catch (err) {
+          btn.disabled = false;
+          showToast(err.message);
+        }
+      });
+    });
 
     container.querySelectorAll("[data-bot-task]").forEach((btn) => {
       btn.addEventListener("click", () => openBotDeepLink(`task_${btn.getAttribute("data-bot-task")}`));
@@ -1362,6 +1541,8 @@
       : `ID: ${user.userId || "—"}`;
     document.getElementById("inputLastName").value = user.lastName || "";
     document.getElementById("inputFirstName").value = user.firstName || "";
+    const bdayInput = document.getElementById("inputBirthday");
+    if (bdayInput) bdayInput.value = user.birthday || "";
   }
 
   // ==================== SUBJECT / LECTURER PROFILES ====================
@@ -2085,6 +2266,67 @@
     });
   });
 
+  // AI Assistant Listeners
+  const aiModal = document.getElementById("aiAssistantModal");
+  const aiMessagesEl = document.getElementById("aiChatMessages");
+  const aiInput = document.getElementById("aiQuestionInput");
+  const aiSendBtn = document.getElementById("aiSendBtn");
+
+  document.getElementById("homeOpenAiBtn")?.addEventListener("click", () => {
+    haptic("light");
+    if (aiModal) {
+      aiModal.hidden = false;
+      setTimeout(() => aiInput?.focus(), 60);
+    }
+  });
+  document.getElementById("closeAiModalBtn")?.addEventListener("click", () => {
+    if (aiModal) aiModal.hidden = true;
+  });
+  aiModal?.addEventListener("click", (e) => {
+    if (e.target === aiModal) aiModal.hidden = true;
+  });
+
+  document.getElementById("aiAskForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const q = (aiInput?.value || "").trim();
+    if (!q || !aiMessagesEl) return;
+    aiInput.value = "";
+
+    const uBubble = document.createElement("div");
+    uBubble.className = "ai-msg ai-msg-user";
+    uBubble.textContent = q;
+    aiMessagesEl.appendChild(uBubble);
+
+    const bBubble = document.createElement("div");
+    bBubble.className = "ai-msg ai-msg-bot";
+    bBubble.textContent = "Шукаю в артиклях і довіднику...";
+    aiMessagesEl.appendChild(bBubble);
+    aiMessagesEl.scrollTop = aiMessagesEl.scrollHeight;
+
+    if (aiSendBtn) aiSendBtn.disabled = true;
+    try {
+      const res = await apiFetch("/api/ai/ask", {
+        method: "POST",
+        body: JSON.stringify({ question: q }),
+      });
+      if (!res.ok) throw new Error(res.error || "Помилка відповіді ШІ");
+      bBubble.textContent = res.answer || "Немає відповіді.";
+    } catch (err) {
+      bBubble.textContent = `⚠️ ${err.message}`;
+    } finally {
+      if (aiSendBtn) aiSendBtn.disabled = false;
+      aiMessagesEl.scrollTop = aiMessagesEl.scrollHeight;
+    }
+  });
+
+  // Deselect long-pressed task on outside click
+  document.addEventListener("click", (ev) => {
+    if (state.selectedTaskId && !ev.target.closest(".task-card-selected")) {
+      state.selectedTaskId = null;
+      renderTasks();
+    }
+  });
+
   // Profile Listeners
   document.getElementById("openBotBtn").addEventListener("click", () => openBotDeepLink(""));
 
@@ -2092,17 +2334,18 @@
     e.preventDefault();
     const lastName = document.getElementById("inputLastName").value.trim();
     const firstName = document.getElementById("inputFirstName").value.trim();
+    const birthday = (document.getElementById("inputBirthday")?.value || "").trim();
     const btn = document.getElementById("saveProfileBtn");
     btn.disabled = true;
     try {
       const res = await apiFetch("/api/profile", {
         method: "POST",
-        body: JSON.stringify({ lastName, firstName }),
+        body: JSON.stringify({ lastName, firstName, birthday }),
       });
       if (!res.ok) throw new Error(res.error || "Не вдалося зберегти");
       state.user = { ...state.user, ...res.user, isRegistered: true };
       renderProfile();
-      showToast("ПІБ збережено!");
+      showToast("Дані профілю збережено!");
     } catch (err) {
       showToast(err.message);
     } finally {
@@ -2116,7 +2359,7 @@
     e.target.value = "";
     try {
       showToast("Стиснення та збереження аватарки...");
-      const dataUrl = await compressImageFile(file, 320, 0.8);
+      const dataUrl = await compressImageFile(file, 256, 0.78);
       const res = await apiFetch("/api/profile/avatar", {
         method: "POST",
         body: JSON.stringify({ dataUrl }),
@@ -2175,28 +2418,47 @@
     if (typeof fn === "function") await fn();
   });
 
-  // Telegraph-style inline URL/Photo input bar (https:// is NOT required)
+  // Telegraph-style inline URL/Photo input bar (https:// is NOT required, Ctrl+K supported)
   let inlineBarMode = null; // "link" | "photoUrl"
   let savedEditorRange = null;
 
   function saveEditorSelection() {
+    const ed = document.getElementById("editArticleBody");
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
-      savedEditorRange = sel.getRangeAt(0).cloneRange();
-    } else {
-      savedEditorRange = null;
+      const range = sel.getRangeAt(0);
+      if (ed && ed.contains(range.commonAncestorContainer)) {
+        savedEditorRange = range.cloneRange();
+      }
     }
   }
 
-  function restoreEditorSelection() {
+  document.getElementById("editArticleBody").addEventListener("mouseup", saveEditorSelection);
+  document.getElementById("editArticleBody").addEventListener("keyup", saveEditorSelection);
+  document.getElementById("editArticleBody").addEventListener("touchend", saveEditorSelection);
+  document.addEventListener("selectionchange", () => {
     const ed = document.getElementById("editArticleBody");
-    ed.focus();
-    if (savedEditorRange) {
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(savedEditorRange);
+    if (ed && document.activeElement === ed) saveEditorSelection();
+  });
+
+  // Prevent toolbar buttons from stealing focus and clearing text selection
+  document.querySelectorAll("#articleToolbar button").forEach((btn) => {
+    btn.addEventListener("mousedown", (e) => {
+      saveEditorSelection();
+      e.preventDefault();
+    });
+  });
+
+  // Ctrl+K / Cmd+K shortcut for inserting hyperlink in article editor
+  document.addEventListener("keydown", (e) => {
+    const editorPage = document.getElementById("articleEditorPage");
+    if (!editorPage || editorPage.hidden) return;
+    if ((e.ctrlKey || e.metaKey) && e.key && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      saveEditorSelection();
+      openTelegraphInlineBar("link");
     }
-  }
+  });
 
   function openTelegraphInlineBar(mode) {
     saveEditorSelection();
@@ -2225,29 +2487,36 @@
     const url = normalizeUserUrl(raw);
     if (!url) return;
 
+    const ed = document.getElementById("editArticleBody");
     if (mode === "photoUrl") {
       insertImageUrlIntoEditor(url);
       showToast("Фото додано");
     } else if (mode === "link") {
-      restoreEditorSelection();
-      const sel = window.getSelection();
-      if (sel && sel.toString().trim().length > 0) {
-        document.execCommand("createLink", false, url);
-      } else {
-        const a = document.createElement("a");
-        a.href = url;
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        a.textContent = raw;
-        const ed = document.getElementById("editArticleBody");
-        if (sel && sel.rangeCount > 0 && ed.contains(sel.anchorNode)) {
-          const range = sel.getRangeAt(0);
+      ed.focus();
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+
+      if (savedEditorRange && ed.contains(savedEditorRange.commonAncestorContainer)) {
+        const range = savedEditorRange.cloneRange();
+        if (!range.collapsed) {
+          const frag = range.extractContents();
+          a.appendChild(frag);
           range.insertNode(a);
-          range.setStartAfter(a);
-          range.collapse(true);
         } else {
-          ed.appendChild(a);
+          a.textContent = raw;
+          range.insertNode(a);
         }
+        range.setStartAfter(a);
+        range.collapse(true);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        savedEditorRange = range.cloneRange();
+      } else {
+        a.textContent = raw;
+        ed.appendChild(a);
       }
     }
   }
