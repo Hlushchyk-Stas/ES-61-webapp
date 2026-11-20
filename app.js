@@ -2202,9 +2202,24 @@
   });
 
   // Bot Notifications Modal
+  function syncGroupNotifToggleUi(enabled) {
+    const chk = document.getElementById("notifEnabledCheck");
+    if (chk) chk.checked = Boolean(enabled);
+    document.querySelectorAll("[data-set-group-notif]").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-set-group-notif") === String(Boolean(enabled)));
+    });
+  }
+
+  document.querySelectorAll("[data-set-group-notif]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      haptic("light");
+      syncGroupNotifToggleUi(btn.getAttribute("data-set-group-notif") === "true");
+    });
+  });
+
   document.getElementById("openNotifSettingsBtn").addEventListener("click", () => {
     const cfg = state.schedule?.notificationSettings || {};
-    document.getElementById("notifEnabledCheck").checked = Boolean(cfg.enabled);
+    syncGroupNotifToggleUi(Boolean(cfg.enabled));
     document.getElementById("notifChatIdInput").value = cfg.chatId || "";
     document.getElementById("notifThreadIdInput").value = cfg.threadId || "";
     document.getElementById("notifSettingsModal").hidden = false;
@@ -2212,21 +2227,26 @@
   document.getElementById("closeNotifSettingsModalBtn").addEventListener("click", () => {
     document.getElementById("notifSettingsModal").hidden = true;
   });
+  document.getElementById("notifSettingsModal").addEventListener("click", (e) => {
+    if (e.target.id === "notifSettingsModal") document.getElementById("notifSettingsModal").hidden = true;
+  });
   document.getElementById("notifSettingsForm").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const enabled = document.getElementById("notifEnabledCheck").checked;
     try {
       const res = await apiFetch("/api/schedule/notifications", {
         method: "POST",
         body: JSON.stringify({
-          enabled: document.getElementById("notifEnabledCheck").checked,
+          enabled,
           chatId: document.getElementById("notifChatIdInput").value.trim(),
           threadId: document.getElementById("notifThreadIdInput").value.trim() || null,
         }),
       });
       if (!res.ok) throw new Error(res.error || "Помилка збереження");
       state.schedule = res.schedule;
+      renderSchedule();
       document.getElementById("notifSettingsModal").hidden = true;
-      showToast("Налаштування сповіщень збережено!");
+      showToast(enabled ? "Сповіщення в чат увімкнено!" : "Сповіщення в чат вимкнено!");
     } catch (err) {
       showToast(err.message);
     }

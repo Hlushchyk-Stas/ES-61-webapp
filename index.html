@@ -25,7 +25,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=47" />
+  <link rel="stylesheet" href="/styles.css?v=48" />
 </head>
 <body>
   <!-- FULLSCREEN CONNECTION / LOADING OVERLAY -->
@@ -703,10 +703,17 @@
         </button>
       </div>
       <form id="notifSettingsForm" class="modal-form-stack">
-        <label class="tg-checkbox-row">
-          <input type="checkbox" id="notifEnabledCheck" />
-          <span>Увімкнути автоматичні сповіщення (за 10 хв до пари та на початку пари)</span>
-        </label>
+        <div class="theme-option-row" style="padding:2px 0 6px;">
+          <div>
+            <div class="meta-value">Сповіщення в чат</div>
+            <div class="meta-sub">За 10 хв до пари та на початку пари</div>
+          </div>
+          <div class="theme-segmented" role="group" aria-label="Сповіщення в чат">
+            <button type="button" class="theme-seg-btn" data-set-group-notif="true">Увімк</button>
+            <button type="button" class="theme-seg-btn" data-set-group-notif="false">Вимк</button>
+          </div>
+        </div>
+        <input type="checkbox" id="notifEnabledCheck" hidden />
         <div class="tg-field-group">
           <label class="tg-field-label" for="notifChatIdInput">Chat ID групи / каналу</label>
           <input type="text" id="notifChatIdInput" class="tg-input-box" placeholder="-100..." />
@@ -766,7 +773,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=47"></script>
+  <script src="/app.js?v=48"></script>
 
 </body>
 </html>
