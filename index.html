@@ -25,7 +25,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=49" />
+  <link rel="stylesheet" href="/styles.css?v=51" />
 </head>
 <body>
   <!-- FULLSCREEN CONNECTION / LOADING OVERLAY -->
@@ -37,7 +37,7 @@
         <span></span><span></span><span></span>
       </div>
       <div class="loader-title" id="loaderTitle">Підключення до сервера</div>
-      <div class="loader-sub" id="loaderSub">Синхронізація даних групи ЕС-61...</div>
+      <div class="loader-sub" id="loaderSub">Синхронізація...</div>
       <div class="loader-warning" id="loaderSlowWarning" hidden>
         <div class="loader-warning-text">
           Схоже, виникли технічні проблеми або на сервері проводяться технічні роботи. Будь ласка, повідомте про це адміністрацію.
@@ -71,13 +71,17 @@
       <form id="guestRegisterForm" class="guest-block" hidden>
         <div class="tg-field-group">
           <label class="tg-field-label" for="regLastName">Прізвище</label>
-          <input type="text" id="regLastName" class="tg-input-box" placeholder="Наприклад: Іваненко" required />
+          <input type="text" id="regLastName" class="tg-input-box" placeholder="Іваненко" required />
         </div>
         <div class="tg-field-group">
           <label class="tg-field-label" for="regFirstName">Ім'я</label>
-          <input type="text" id="regFirstName" class="tg-input-box" placeholder="Наприклад: Іван" required />
+          <input type="text" id="regFirstName" class="tg-input-box" placeholder="Іван" required />
         </div>
-        <button type="submit" class="tg-btn tg-btn-primary tg-btn-full" id="guestRegisterBtn">Подати заявку на верифікацію</button>
+        <div class="tg-field-group">
+          <label class="tg-field-label" for="regBirthday">День народження</label>
+          <input type="date" id="regBirthday" class="tg-input-box" required />
+        </div>
+        <button type="submit" class="tg-btn tg-btn-primary tg-btn-full" id="guestRegisterBtn">Подати заявку</button>
       </form>
 
       <div id="guestStatusNotice" class="guest-status-pill" hidden></div>
@@ -294,12 +298,12 @@
         <form class="tg-section-card tg-form" id="profileForm">
           <label class="tg-field">
             <span>Прізвище</span>
-            <input type="text" id="inputLastName" placeholder="Наприклад: Іваненко" autocomplete="family-name" />
+            <input type="text" id="inputLastName" placeholder="Іваненко" autocomplete="family-name" />
           </label>
           <div class="tg-divider"></div>
           <label class="tg-field">
             <span>Ім'я</span>
-            <input type="text" id="inputFirstName" placeholder="Наприклад: Іван" autocomplete="given-name" />
+            <input type="text" id="inputFirstName" placeholder="Іван" autocomplete="given-name" />
           </label>
           <div class="tg-divider"></div>
           <label class="tg-field">
@@ -400,9 +404,9 @@
     <div class="telegraph-article-shell">
       <div class="telegraph-editor">
         <input type="text" id="editArticleTitle" class="telegraph-input-title" placeholder="Заголовок артикля..." />
-        <input type="text" id="editArticleAuthor" class="telegraph-input-author" placeholder="Автор (необов'язково)" />
+        <input type="text" id="editArticleAuthor" class="telegraph-input-author" placeholder="Автор" />
         <div class="editor-subject-row">
-          <label class="tg-field-label" for="editArticleSubject">Предмет (необов'язково)</label>
+          <label class="tg-field-label" for="editArticleSubject">Предмет</label>
           <select id="editArticleSubject" class="tg-input-box"></select>
         </div>
 
@@ -544,7 +548,7 @@
         <input type="hidden" id="evtReplacesKeyInput" />
         <div class="tg-field-group">
           <label class="tg-field-label" for="evtNameInput">Назва предмета / події</label>
-          <input type="text" id="evtNameInput" class="tg-input-box" list="subjectsDatalist" placeholder="Наприклад: Вища математика" required />
+          <input type="text" id="evtNameInput" class="tg-input-box" list="subjectsDatalist" placeholder="Вища математика" required />
           <datalist id="subjectsDatalist"></datalist>
         </div>
         <div class="modal-grid-2">
@@ -576,10 +580,10 @@
         </div>
         <label class="tg-checkbox-row">
           <input type="checkbox" id="evtOneTimeCheck" />
-          <span>Одноразова подія (лише на вказану дату)</span>
+          <span>Одноразова подія</span>
         </label>
         <div class="tg-field-group">
-          <label class="tg-field-label" for="evtDateInput">Дата проведення (обов'язково для одноразової або спец. дати)</label>
+          <label class="tg-field-label" for="evtDateInput">Дата проведення</label>
           <input type="date" id="evtDateInput" class="tg-input-box" />
         </div>
         <div class="modal-grid-2" id="evtRecurringRow">
@@ -610,7 +614,7 @@
           </div>
           <div class="tg-field-group">
             <label class="tg-field-label" for="evtRoomInput">Аудиторія / корпус</label>
-            <input type="text" id="evtRoomInput" class="tg-input-box" placeholder="Наприклад: 20-314 або Онлайн" />
+            <input type="text" id="evtRoomInput" class="tg-input-box" placeholder="20-314 або Онлайн" />
           </div>
         </div>
         <div class="tg-field-group">
@@ -619,7 +623,7 @@
         </div>
         <label class="tg-checkbox-row">
           <input type="checkbox" id="evtSplitSubgroupsCheck" />
-          <span>Поділити на 2 підгрупи (2 окремих посилання)</span>
+          <span>Поділити на 2 підгрупи</span>
         </label>
         <div id="evtSingleLinkWrap" class="tg-field-group">
           <label class="tg-field-label" for="evtLinkInput">Посилання на пару</label>
@@ -665,8 +669,8 @@
         </div>
         <div id="clStatusBanner" class="cl-status-banner" hidden></div>
         <div class="tg-field-group">
-          <label class="tg-field-label" for="clRoomInput">Аудиторія / місце (необов'язково)</label>
-          <input type="text" id="clRoomInput" class="tg-input-box" placeholder="Наприклад: Онлайн / 20-314" />
+          <label class="tg-field-label" for="clRoomInput">Аудиторія / місце</label>
+          <input type="text" id="clRoomInput" class="tg-input-box" placeholder="Онлайн / 20-314" />
         </div>
         <div class="theme-option-row" style="padding:2px 0;">
           <div>
@@ -689,14 +693,14 @@
           <div class="cl-subgroup-box">
             <div class="tg-field-label">Підгрупа 1</div>
             <div class="modal-grid-2">
-              <input type="text" id="clSg1Name" class="tg-input-box" placeholder="Назва (напр. 1 підгрупа)" value="Підгрупа 1" />
+              <input type="text" id="clSg1Name" class="tg-input-box" placeholder="Назва 1 підгрупи" value="Підгрупа 1" />
               <input type="text" id="clSg1Link" class="tg-input-box" placeholder="Посилання 1 підгрупи" />
             </div>
           </div>
           <div class="cl-subgroup-box">
             <div class="tg-field-label">Підгрупа 2</div>
             <div class="modal-grid-2">
-              <input type="text" id="clSg2Name" class="tg-input-box" placeholder="Назва (напр. 2 підгрупа)" value="Підгрупа 2" />
+              <input type="text" id="clSg2Name" class="tg-input-box" placeholder="Назва 2 підгрупи" value="Підгрупа 2" />
               <input type="text" id="clSg2Link" class="tg-input-box" placeholder="Посилання 2 підгрупи" />
             </div>
           </div>
@@ -708,7 +712,7 @@
         </div>
       </form>
       <div class="tg-divider"></div>
-      <div class="meta-label">Налаштовані посилання (натисніть для редагування):</div>
+      <div class="meta-label">Налаштовані посилання:</div>
       <div id="classLinksList" class="cl-cards-list"></div>
     </div>
   </div>
@@ -739,7 +743,7 @@
           <input type="text" id="notifChatIdInput" class="tg-input-box" placeholder="-100..." />
         </div>
         <div class="tg-field-group">
-          <label class="tg-field-label" for="notifThreadIdInput">ID гілки (Topic Thread ID, необов'язково)</label>
+          <label class="tg-field-label" for="notifThreadIdInput">ID гілки</label>
           <input type="number" id="notifThreadIdInput" class="tg-input-box" placeholder="Залиште порожнім для загального чату" />
         </div>
         <div class="meta-sub">
@@ -776,24 +780,24 @@
   <div class="tg-modal-backdrop" id="aiAssistantModal" hidden>
     <div class="tg-modal tg-modal-lg ai-modal-box">
       <div class="tg-modal-header">
-        <div class="tg-modal-title">ШІ Помічник ЕС-61</div>
+        <div class="tg-modal-title">ШІ Помічник</div>
         <button type="button" class="tg-icon-btn" id="closeAiModalBtn" aria-label="Закрити">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
       <div class="ai-chat-messages" id="aiChatMessages">
         <div class="ai-msg ai-msg-bot">
-          Привіт! Задай мені будь-яке питання щодо предметів, викладачів, розкладу або конспектів і артиклів групи ЕС-61.
+          Задай питання щодо предметів, викладачів, розкладу чи артиклів.
         </div>
       </div>
       <form class="ai-chat-form" id="aiAskForm">
-        <input type="text" id="aiQuestionInput" class="tg-input-box" placeholder="Наприклад: Яка РСО з фізики або хто веде практику?" maxlength="1500" autocomplete="off" />
+        <input type="text" id="aiQuestionInput" class="tg-input-box" placeholder="Ваше запитання..." maxlength="1500" autocomplete="off" />
         <button type="submit" class="tg-btn tg-btn-primary" id="aiSendBtn">Запитати</button>
       </form>
     </div>
   </div>
 
-  <script src="/app.js?v=49"></script>
+  <script src="/app.js?v=51"></script>
 
 </body>
 </html>

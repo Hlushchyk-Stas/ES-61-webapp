@@ -467,12 +467,14 @@
       regForm.hidden = false;
       document.getElementById("regLastName").value = state.user?.lastName || "";
       document.getElementById("regFirstName").value = state.user?.firstName || "";
+      const rb = document.getElementById("regBirthday"); if (rb) rb.value = state.user?.birthday || "";
     } else if (st === "unregistered") {
       titleEl.textContent = "Реєстрація учасника";
       descEl.textContent = "Заповніть Прізвище та Ім'я для підтвердження доступу адміністратором. Після верифікації відкриється повний функціонал.";
       regForm.hidden = false;
       document.getElementById("regLastName").value = state.user?.lastName || "";
       document.getElementById("regFirstName").value = state.user?.firstName || "";
+      const rb = document.getElementById("regBirthday"); if (rb) rb.value = state.user?.birthday || "";
     } else {
       if (state.authReason === "wrong_bot_signature") {
         titleEl.textContent = "Відкрито через іншого бота";
@@ -646,8 +648,8 @@
 
     const sched = state.schedule;
     document.getElementById("homeDateMeta").textContent = sched
-      ? `${sched.todayDayName || ""} · ${sched.currentWeek || 1}-й тиждень · ${sched.groupName || "ЕС-61"}`
-      : "Група ЕС-61";
+      ? `${sched.todayDayName || ""} · ${sched.currentWeek || 1}-й тиждень`
+      : "";
 
     const openTasks = (state.tasks || []).filter((t) => t.status !== "closed");
     document.getElementById("homeTileTasksSub").textContent = `${openTasks.length} відкритих`;
@@ -1678,7 +1680,7 @@
                   ${ICONS.camera}<span>${imgSrc ? "Змінити фото" : "Завантажити фото"}</span>
                   <input type="file" accept="image/*" data-cat-photo="${idx}" hidden />
                 </label>
-                <textarea class="entity-cat-textarea" data-cat-text="${idx}" placeholder="Підпис до фото (необов'язково)...">${escapeHtml(cat.contentHtml || "")}</textarea>
+                <textarea class="entity-cat-textarea" data-cat-text="${idx}" placeholder="Підпис до фото...">${escapeHtml(cat.contentHtml || "")}</textarea>
               `
               : `<textarea class="entity-cat-textarea" data-cat-text="${idx}" placeholder="Введіть інформацію...">${escapeHtml(cat.contentHtml || "")}</textarea>`
           }
@@ -2156,12 +2158,17 @@
     e.preventDefault();
     const lastName = document.getElementById("regLastName").value.trim();
     const firstName = document.getElementById("regFirstName").value.trim();
+    const birthday = (document.getElementById("regBirthday")?.value || "").trim();
+    if (!birthday) {
+      showToast("Вкажіть дату народження");
+      return;
+    }
     const btn = document.getElementById("guestRegisterBtn");
     btn.disabled = true;
     try {
       const res = await apiFetch("/api/register", {
         method: "POST",
-        body: JSON.stringify({ lastName, firstName }),
+        body: JSON.stringify({ lastName, firstName, birthday }),
       });
       if (!res.ok) throw new Error(res.error || "Помилка реєстрації");
       showToast(res.status === "verified" ? "Верифіковано!" : "Заявку надіслано адміністраторам!");
@@ -2211,6 +2218,115 @@
   document.getElementById("cancelScheduleEventBtn").addEventListener("click", () => {
     document.getElementById("scheduleEventModal").hidden = true;
   });
+  function findLessonTemplateForSubjectAndType(subject, type) {
+    const subjTrim = String(subject || "").trim();
+    const typeTrim = String(type || "").trim().toLowerCase();
+    if (!subjTrim) return null;
+
+    const savedLink = findSavedClassLink(subjTrim, type)?.cfg || null;
+
+    const allLessons = [];
+    const weeks = state.schedule?.weeks || {};
+    for (const wk of Object.values(weeks)) {
+      for (const dayList of Object.values(wk || {})) {
+        for (const l of dayList || []) allLessons.push(l);
+      }
+    }
+    for (const ev of state.schedule?.oneTimeEvents || []) allLessons.push(ev);
+
+    const exactMatches = allLessons.filter(
+      (l) =>
+        String(l?.name || "").trim().toLowerCase() === subjTrim.toLowerCase() &&
+        String(l?.type || "").trim().toLowerCase() === typeTrim,
+    );
+    const subjMatches = allLessons.filter(
+      (l) => String(l?.name || "").trim().toLowerCase() === subjTrim.toLowerCase(),
+    );
+    const pool = exactMatches.length ? exactMatches : subjMatches;
+
+    const lecturers = Array.from(
+      new Set(pool.map((l) => String(l?.lecturer || "").trim()).filter(Boolean)),
+    );
+    const firstRoom =
+      savedLink?.room ||
+      pool.map((l) => String(l?.room || "").trim()).find(Boolean) ||
+      "";
+
+    let splitSubgroups = false;
+    let link = "";
+    let sg1Name = "Підгрупа 1";
+    let sg1Link = "";
+    let sg2Name = "Підгрупа 2";
+    let sg2Link = "";
+
+    if (savedLink) {
+      splitSubgroups = Boolean(savedLink.splitSubgroups);
+      link = savedLink.link || "";
+      sg1Name = savedLink.subgroup1Name || "Підгрупа 1";
+      sg1Link = savedLink.subgroup1Link || "";
+      sg2Name = savedLink.subgroup2Name || "Підгрупа 2";
+      sg2Link = savedLink.subgroup2Link || "";
+    } else {
+      const withSg = pool.find((l) => Array.isArray(l?.subgroups) && l.subgroups.length > 0);
+      if (withSg) {
+        splitSubgroups = true;
+        sg1Name = withSg.subgroups[0]?.name || "Підгрупа 1";
+        sg1Link = withSg.subgroups[0]?.link || "";
+        sg2Name = withSg.subgroups[1]?.name || "Підгрупа 2";
+        sg2Link = withSg.subgroups[1]?.link || "";
+      } else {
+        link = pool.map((l) => String(l?.link || "").trim()).find(Boolean) || "";
+      }
+    }
+
+    if (!lecturers.length && !firstRoom && !link && !sg1Link && !sg2Link && !savedLink) {
+      return null;
+    }
+
+    return {
+      lecturer: lecturers.join(", "),
+      room: firstRoom,
+      splitSubgroups,
+      link,
+      sg1Name,
+      sg1Link,
+      sg2Name,
+      sg2Link,
+    };
+  }
+
+  function applyScheduleEventTemplateIfNew() {
+    // Автошаблон спрацьовує при створенні нової пари (коли evtIdInput та evtReplacesKeyInput порожні)
+    if (document.getElementById("evtIdInput").value || document.getElementById("evtReplacesKeyInput").value) {
+      return;
+    }
+    const subject = document.getElementById("evtNameInput").value.trim();
+    const type = document.getElementById("evtTypeSelect").value;
+    const tpl = findLessonTemplateForSubjectAndType(subject, type);
+    if (!tpl) return;
+
+    document.getElementById("evtLecturerInput").value = tpl.lecturer;
+    document.getElementById("evtRoomInput").value = tpl.room;
+    document.getElementById("evtSplitSubgroupsCheck").checked = tpl.splitSubgroups;
+    document.getElementById("evtSingleLinkWrap").hidden = tpl.splitSubgroups;
+    document.getElementById("evtSubgroupsWrap").hidden = !tpl.splitSubgroups;
+    document.getElementById("evtLinkInput").value = tpl.link;
+    document.getElementById("evtSg1Name").value = tpl.sg1Name;
+    document.getElementById("evtSg1Link").value = tpl.sg1Link;
+    document.getElementById("evtSg2Name").value = tpl.sg2Name;
+    document.getElementById("evtSg2Link").value = tpl.sg2Link;
+  }
+
+  document.getElementById("evtNameInput").addEventListener("change", applyScheduleEventTemplateIfNew);
+  document.getElementById("evtNameInput").addEventListener("input", () => {
+    const val = document.getElementById("evtNameInput").value.trim().toLowerCase();
+    const subjects = collectEntitiesFromScheduleAndProfiles("subject");
+    if (subjects.some((s) => s.toLowerCase() === val)) {
+      applyScheduleEventTemplateIfNew();
+    }
+  });
+  document.getElementById("evtTypeSelect").addEventListener("change", applyScheduleEventTemplateIfNew);
+
   document.getElementById("evtPairSelect").addEventListener("change", (e) => {
     const slot = KPI_PAIR_TIMES[Number(e.target.value)];
     if (slot) {
@@ -2674,7 +2790,7 @@
     inp.placeholder =
       mode === "photoUrl"
         ? "Вставте посилання на фото і натисніть Enter"
-        : "Вставте посилання (наприклад, google.com) і натисніть Enter";
+        : "Вставте посилання і натисніть Enter";
     bar.hidden = false;
     setTimeout(() => inp.focus(), 10);
   }
