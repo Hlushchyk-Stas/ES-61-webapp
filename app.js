@@ -1480,7 +1480,6 @@
       const fullName = `${u.lastName || ""} ${u.firstName || ""}`.trim() || `ID ${u.userId}`;
       const subParts = [];
       if (u.username) subParts.push(`@${u.username}`);
-      if (u.birthday) subParts.push(`🎂 ${formatUkDate(u.birthday)}`);
       subParts.push(`ID ${u.userId}`);
       const subText = subParts.join(" · ");
 
