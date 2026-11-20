@@ -1378,10 +1378,12 @@
     });
     container.querySelectorAll("[data-copy-slug]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        const url = `${window.location.origin}/${encodeURIComponent(btn.getAttribute("data-copy-slug"))}`;
+        const slugVal = btn.getAttribute("data-copy-slug") || "";
+        const bot = state.botUsername || "ES61bot";
+        const url = `https://t.me/${bot}?startapp=${encodeURIComponent(slugVal)}`;
         try {
           await navigator.clipboard.writeText(url);
-          showToast("Посилання скопійовано!");
+          showToast("Telegram-посилання скопійовано!");
         } catch {
           showToast(url);
         }
@@ -2144,6 +2146,27 @@
 
       updatePendingIndicator();
       showLoader(false);
+      if (!state.startParamHandled) {
+        state.startParamHandled = true;
+        const urlQs = new URLSearchParams(window.location.search);
+        const rawStartParam = String(
+          (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ||
+            urlQs.get("tgWebAppStartParam") ||
+            urlQs.get("startapp") ||
+            "",
+        ).trim();
+        if (rawStartParam) {
+          const lowerParam = rawStartParam.toLowerCase();
+          if (APP_ROUTES.has(`/${lowerParam}`)) {
+            window.history.replaceState({}, "", `/${lowerParam}`);
+          } else if (rawStartParam.startsWith("article_")) {
+            const sl = rawStartParam.slice("article_".length).trim();
+            if (sl) window.history.replaceState({}, "", `/${encodeURIComponent(sl)}`);
+          } else {
+            window.history.replaceState({}, "", `/${encodeURIComponent(rawStartParam)}`);
+          }
+        }
+      }
       renderCurrentRoute();
     } catch (err) {
       // Keep loader visible with slow/error warning so user sees technical notice & retry
