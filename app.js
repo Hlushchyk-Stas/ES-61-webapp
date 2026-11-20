@@ -643,7 +643,14 @@
     const name = `${u.firstName || ""} ${u.lastName || ""}`.trim() || "Учасник";
     renderAvatarInto(document.getElementById("homeUserAvatar"), u);
     document.getElementById("homeGreeting").textContent = `Привіт, ${u.firstName || name}!`;
-    document.getElementById("homeAdminPill").hidden = !state.isAdmin;
+    const homePill = document.getElementById("homeAdminPill");
+    if (homePill) {
+      const rLabel = u.roleLabel || (state.isAdmin ? "Адміністратор" : "");
+      const rColor = u.roleColor || "yellow";
+      homePill.hidden = !rLabel;
+      homePill.textContent = rLabel;
+      homePill.className = `admin-crown-pill${rColor ? ` role-badge-${rColor}` : ""}`;
+    }
 
 
     const sched = state.schedule;
@@ -1471,35 +1478,49 @@
       const card = document.createElement("div");
       card.className = "user-card";
       const fullName = `${u.lastName || ""} ${u.firstName || ""}`.trim() || `ID ${u.userId}`;
-      const subText = u.username ? `@${u.username} · ID ${u.userId}` : `ID ${u.userId}`;
+      const subParts = [];
+      if (u.username) subParts.push(`@${u.username}`);
+      if (u.birthday) subParts.push(`🎂 ${formatUkDate(u.birthday)}`);
+      subParts.push(`ID ${u.userId}`);
+      const subText = subParts.join(" · ");
+
+      const isSelf = String(u.userId) === String(state.user?.userId || "");
+      const canEditProfile = state.isOwner || (state.isAdmin && (!u.isAdmin || isSelf));
+      const canModerate = (state.isOwner && !isSelf && !u.isOwner) || (state.isAdmin && !u.isAdmin);
 
       let actionsHtml = "";
       let manageToggleHtml = "";
-      if (state.isAdmin && !u.isAdmin) {
-        if (state.usersTab === "verified") {
-          manageToggleHtml = `<button type="button" class="mini-icon-btn" data-toggle-u-menu="${escapeAttr(u.userId)}" title="Керувати">•••</button>`;
-          actionsHtml = `
-            <div class="user-card-actions" data-u-menu="${escapeAttr(u.userId)}" hidden>
-              <button type="button" class="tg-btn tg-btn-danger tg-btn-sm" data-u-act="delete" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">Видалити акаунт</button>
-              <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-act="blacklist" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">У чорний список</button>
-            </div>
-          `;
-        } else if (state.usersTab === "pending") {
-          actionsHtml = `
-            <div class="user-card-actions">
-              <button type="button" class="tg-btn tg-btn-success tg-btn-sm" data-u-act="approve" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">Підтвердити</button>
-              <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-act="reject" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">Відхилити</button>
-              <button type="button" class="tg-btn tg-btn-danger tg-btn-sm" data-u-act="blacklist" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">У ЧС</button>
-            </div>
-          `;
-        } else if (state.usersTab === "blacklisted") {
-          actionsHtml = `
-            <div class="user-card-actions">
-              <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-act="unblacklist" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">Винести з ЧС</button>
-            </div>
-          `;
-        }
+      if (state.usersTab === "verified" && (canEditProfile || canModerate)) {
+        manageToggleHtml = `<button type="button" class="mini-icon-btn" data-toggle-u-menu="${escapeAttr(u.userId)}" title="Керувати">•••</button>`;
+        actionsHtml = `
+          <div class="user-card-actions" data-u-menu="${escapeAttr(u.userId)}" hidden>
+            ${canEditProfile ? `<button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-edit="${escapeAttr(u.userId)}">Редагувати</button>` : ""}
+            ${canModerate ? `<button type="button" class="tg-btn tg-btn-danger tg-btn-sm" data-u-act="delete" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">Видалити</button>` : ""}
+            ${canModerate ? `<button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-act="blacklist" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">У ЧС</button>` : ""}
+          </div>
+        `;
+      } else if (state.usersTab === "pending" && canModerate) {
+        actionsHtml = `
+          <div class="user-card-actions">
+            <button type="button" class="tg-btn tg-btn-success tg-btn-sm" data-u-act="approve" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">Підтвердити</button>
+            <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-edit="${escapeAttr(u.userId)}">Редагувати</button>
+            <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-act="reject" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">Відхилити</button>
+            <button type="button" class="tg-btn tg-btn-danger tg-btn-sm" data-u-act="blacklist" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">У ЧС</button>
+          </div>
+        `;
+      } else if (state.usersTab === "blacklisted" && canModerate) {
+        actionsHtml = `
+          <div class="user-card-actions">
+            <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-u-act="unblacklist" data-u-id="${escapeAttr(u.userId)}" data-u-name="${escapeAttr(fullName)}">Винести з ЧС</button>
+          </div>
+        `;
       }
+
+      const roleBadgeHtml = u.roleLabel
+        ? `<span class="admin-crown-pill${u.roleColor ? ` role-badge-${escapeAttr(u.roleColor)}` : ""}">${escapeHtml(u.roleLabel)}</span>`
+        : u.isAdmin
+          ? '<span class="admin-crown-pill role-badge-yellow">Адміністратор</span>'
+          : "";
 
       card.innerHTML = `
         <div class="user-card-row">
@@ -1507,7 +1528,7 @@
           <div class="user-card-info">
             <div class="user-card-name">
               <span>${escapeHtml(fullName)}</span>
-              ${u.isAdmin ? '<span class="admin-crown-pill">Адмін</span>' : ""}
+              ${roleBadgeHtml}
             </div>
             <div class="meta-sub">${escapeHtml(subText)}</div>
           </div>
@@ -1518,6 +1539,23 @@
       renderAvatarInto(card.querySelector("[data-user-avatar]"), u);
       container.appendChild(card);
     }
+
+    container.querySelectorAll("[data-u-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const uid = btn.getAttribute("data-u-edit");
+        const allList = [...(state.users || []), ...(state.pendingUsers || [])];
+        const target = allList.find((x) => String(x.userId) === String(uid));
+        if (!target) return;
+        document.getElementById("editUserIdInput").value = target.userId;
+        document.getElementById("editUserMetaInfo").textContent = `ID: ${target.userId}${target.roleLabel ? ` · ${target.roleLabel}` : ""}`;
+        document.getElementById("editUserLastName").value = target.lastName || "";
+        document.getElementById("editUserFirstName").value = target.firstName || "";
+        document.getElementById("editUserBirthday").value = target.birthday || "";
+        document.getElementById("editUserUsername").value = target.username || "";
+        document.getElementById("editUserRemoveAvatar").checked = false;
+        document.getElementById("editUserModal").hidden = false;
+      });
+    });
 
     container.querySelectorAll("[data-toggle-u-menu]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -2064,6 +2102,7 @@
 
       state.user = data.user;
       state.isAdmin = Boolean(data.isAdmin);
+      state.isOwner = Boolean(data.isOwner);
       state.authReason = data.authReason || "";
       state.isVerified = Boolean(data.isVerified);
       state.userStatus = data.userStatus || (state.isVerified ? "verified" : "guest");
@@ -2541,6 +2580,51 @@
       showToast("Предмет завдання оновлено!");
     } catch (err) {
       showToast(err.message);
+    }
+  });
+
+  // Edit User Profile Modal Listeners (Admin / Owner)
+  const closeEditUserModal = () => {
+    const m = document.getElementById("editUserModal");
+    if (m) m.hidden = true;
+  };
+  document.getElementById("closeEditUserModalBtn")?.addEventListener("click", closeEditUserModal);
+  document.getElementById("cancelEditUserBtn")?.addEventListener("click", closeEditUserModal);
+  document.getElementById("editUserModal")?.addEventListener("click", (e) => {
+    if (e.target.id === "editUserModal") closeEditUserModal();
+  });
+  document.getElementById("editUserForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const userId = document.getElementById("editUserIdInput").value.trim();
+    const lastName = document.getElementById("editUserLastName").value.trim();
+    const firstName = document.getElementById("editUserFirstName").value.trim();
+    const birthday = document.getElementById("editUserBirthday").value.trim();
+    const username = document.getElementById("editUserUsername").value.trim().replace(/^@+/, "");
+    const removeAvatar = document.getElementById("editUserRemoveAvatar").checked;
+    const btn = document.getElementById("saveEditUserBtn");
+    if (btn) btn.disabled = true;
+    try {
+      const res = await apiFetch("/api/users/edit", {
+        method: "POST",
+        body: JSON.stringify({ userId, lastName, firstName, birthday, username, removeAvatar }),
+      });
+      if (!res.ok) throw new Error(res.error || "Помилка збереження");
+      state.users = res.users || [];
+      state.pendingUsers = res.pendingUsers || [];
+      state.blacklistedUsers = res.blacklistedUsers || [];
+      if (String(userId) === String(state.user?.userId || "")) {
+        const me = state.users.find((x) => String(x.userId) === String(userId));
+        if (me) state.user = { ...state.user, ...me };
+        renderHome();
+        renderProfile();
+      }
+      renderUsers();
+      closeEditUserModal();
+      showToast("Профіль учасника оновлено!");
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      if (btn) btn.disabled = false;
     }
   });
 

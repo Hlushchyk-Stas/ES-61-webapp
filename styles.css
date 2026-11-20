@@ -1363,3 +1363,24 @@ html[data-theme="dark"] .lesson-badge.type-lab { background: rgba(250, 204, 21, 
   gap: 8px;
   margin-top: 2px;
 }
+
+/* ==================== ROLE BADGE COLORS ==================== */
+.role-badge-green {
+  background: var(--tg-green-soft) !important;
+  color: var(--tg-green) !important;
+}
+
+.role-badge-purple {
+  background: var(--tg-purple-soft) !important;
+  color: var(--tg-purple) !important;
+}
+
+.role-badge-yellow {
+  background: rgba(234, 179, 8, 0.16) !important;
+  color: #ca8a04 !important;
+}
+
+html[data-theme="dark"] .role-badge-yellow {
+  background: rgba(250, 204, 21, 0.16) !important;
+  color: #facc15 !important;
+}

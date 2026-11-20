@@ -25,7 +25,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=51" />
+  <link rel="stylesheet" href="/styles.css?v=52" />
 </head>
 <body>
   <!-- FULLSCREEN CONNECTION / LOADING OVERLAY -->
@@ -797,7 +797,47 @@
     </div>
   </div>
 
-  <script src="/app.js?v=51"></script>
+  <!-- MODAL: EDIT USER PROFILE (ADMIN / OWNER) -->
+  <div class="tg-modal-backdrop" id="editUserModal" hidden>
+    <div class="tg-modal">
+      <div class="tg-modal-header">
+        <div class="tg-modal-title">Редагувати учасника</div>
+        <button type="button" class="tg-icon-btn" id="closeEditUserModalBtn" aria-label="Закрити">
+          <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="meta-sub" id="editUserMetaInfo"></div>
+      <form id="editUserForm" class="modal-form-stack">
+        <input type="hidden" id="editUserIdInput" />
+        <div class="tg-field-group">
+          <label class="tg-field-label" for="editUserLastName">Прізвище</label>
+          <input type="text" id="editUserLastName" class="tg-input-box" required />
+        </div>
+        <div class="tg-field-group">
+          <label class="tg-field-label" for="editUserFirstName">Ім'я</label>
+          <input type="text" id="editUserFirstName" class="tg-input-box" required />
+        </div>
+        <div class="tg-field-group">
+          <label class="tg-field-label" for="editUserBirthday">День народження</label>
+          <input type="date" id="editUserBirthday" class="tg-input-box" />
+        </div>
+        <div class="tg-field-group">
+          <label class="tg-field-label" for="editUserUsername">Username Telegram</label>
+          <input type="text" id="editUserUsername" class="tg-input-box" placeholder="username без @" />
+        </div>
+        <label class="tg-checkbox-row">
+          <input type="checkbox" id="editUserRemoveAvatar" />
+          <span>Скинути аватарку користувача</span>
+        </label>
+        <div class="tg-form-actions">
+          <button type="button" class="tg-btn tg-btn-secondary" id="cancelEditUserBtn">Скасувати</button>
+          <button type="submit" class="tg-btn tg-btn-primary" id="saveEditUserBtn">Зберегти</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/app.js?v=52"></script>
 
 </body>
 </html>
