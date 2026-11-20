@@ -1,14 +1,23 @@
 {
   "headers": [
     {
-      "source": "/(index\.html|app\.js|styles\.css)",
+      "source": "/(index\\.html|app\\.js|styles\\.css)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     }
   ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/proxy?__path=$1" },
-    { "source": "/((?!api/|styles\.css|app\.js|favicon\.ico|robots\.txt).*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/proxy?__path=$1"
+    },
+    {
+      "source": "/((?!api/|styles\\.css|app\\.js|favicon\\.ico|robots\\.txt).*)",
+      "destination": "/index.html"
+    }
   ]
 }
