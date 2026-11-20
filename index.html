@@ -25,7 +25,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/styles.css?v=46" />
 </head>
 <body>
   <!-- FULLSCREEN CONNECTION / LOADING OVERLAY -->
@@ -64,12 +64,8 @@
         Гостьовий доступ дозволяє переглядати лише окремі артиклі за прямим посиланням. Щоб користуватися додатком, подайте заявку на верифікацію.
       </p>
 
-      <div id="guestManualIdBlock" class="guest-block" hidden>
-        <label class="tg-field-label" for="guestManualIdInput">Увійти за Telegram ID (якщо відкрито в браузері)</label>
-        <div class="inline-input-row">
-          <input type="text" id="guestManualIdInput" class="tg-input-box" placeholder="Наприклад: 1467992641" inputmode="numeric" />
-          <button type="button" class="tg-btn tg-btn-primary" id="guestSaveIdBtn">Увійти</button>
-        </div>
+      <div id="guestBrowserBlock" class="guest-block" hidden>
+        <a href="https://t.me/ES61bot" id="guestOpenTgLink" target="_blank" rel="noopener noreferrer" class="tg-btn tg-btn-primary tg-btn-full">Відкрити в Telegram (@ES61bot)</a>
       </div>
 
       <form id="guestRegisterForm" class="guest-block" hidden>
@@ -318,6 +314,20 @@
             <button class="tg-btn tg-btn-primary" type="submit" id="saveProfileBtn">Зберегти</button>
           </div>
         </form>
+
+        <div class="tg-section-header">Сповіщення</div>
+        <div class="tg-section-card">
+          <div class="theme-option-row">
+            <div>
+              <div class="meta-value">Повідомлення про пари</div>
+              <div class="meta-sub">Нагадування в Telegram за 10 хв і на початку пари</div>
+            </div>
+            <div class="theme-segmented" role="group" aria-label="Сповіщення про пари">
+              <button type="button" class="theme-seg-btn" data-set-class-notif="true">Увімк</button>
+              <button type="button" class="theme-seg-btn" data-set-class-notif="false">Вимк</button>
+            </div>
+          </div>
+        </div>
 
         <div class="tg-section-header">Оформлення</div>
         <div class="tg-section-card">
@@ -756,7 +766,7 @@
     </div>
   </div>
 
-  <script src="/app.js"></script>
+  <script src="/app.js?v=46"></script>
 
 </body>
 </html>

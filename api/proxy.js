@@ -27,7 +27,7 @@ function buildTargetPath(req) {
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Telegram-Init-Data, X-Telegram-User-Id");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Telegram-Init-Data");
 
   if ((req.method || "").toUpperCase() === "OPTIONS") {
     res.statusCode = 204;
@@ -39,7 +39,7 @@ module.exports = async (req, res) => {
   const headers = {};
   for (const [k, v] of Object.entries(req.headers || {})) {
     const lk = k.toLowerCase();
-    if (["content-type", "x-telegram-init-data", "x-telegram-user-id"].includes(lk)) {
+    if (["content-type", "x-telegram-init-data"].includes(lk)) {
       headers[lk] = v;
     }
   }

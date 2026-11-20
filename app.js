@@ -1,6 +1,12 @@
 (function () {
   const THEME_STORAGE_KEY = "tg_archiver_theme";
   const USER_ID_STORAGE_KEY = "tg_archiver_user_id";
+  function setStoredAdminToken(tok) {
+    try {
+      if (tok) localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, tok);
+      else localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+    } catch {}
+  }
   const FALLBACK_SERVER_URL = "http://78.154.103.37:14370";
   const DAYS_SHORT = {
     Понеділок: "Пн",
@@ -209,12 +215,6 @@
     if (hasBody) headers["Content-Type"] = "application/json";
     if (tg && tg.initData) {
       headers["X-Telegram-Init-Data"] = tg.initData;
-    }
-    const unsafeId = tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "";
-    const manualId = getSavedManualUserId();
-    const bestId = unsafeId || manualId;
-    if (bestId) {
-      headers["X-Telegram-User-Id"] = bestId;
     }
     return headers;
   }
@@ -440,11 +440,11 @@
 
     const titleEl = document.getElementById("guestGateTitle");
     const descEl = document.getElementById("guestGateDesc");
-    const manualBlock = document.getElementById("guestManualIdBlock");
+    const browserBlock = document.getElementById("guestBrowserBlock");
     const regForm = document.getElementById("guestRegisterForm");
     const statusNotice = document.getElementById("guestStatusNotice");
 
-    manualBlock.hidden = true;
+    if (browserBlock) browserBlock.hidden = true;
     regForm.hidden = true;
     statusNotice.hidden = true;
     statusNotice.className = "guest-status-pill";
@@ -474,9 +474,16 @@
       document.getElementById("regLastName").value = state.user?.lastName || "";
       document.getElementById("regFirstName").value = state.user?.firstName || "";
     } else {
-      titleEl.textContent = "Гостьовий вхід обмежено";
-      descEl.textContent = "Неверифіковані користувачі можуть переглядати лише окремий артикль за прямим посиланням. Відкрийте додаток у Telegram або введіть ваш Telegram ID.";
-      manualBlock.hidden = false;
+      titleEl.textContent = "Вхід через браузер заборонено";
+      descEl.textContent = "Авторизація та реєстрація доступні лише всередині Telegram-бота. У браузері можна переглядати тільки окремі артиклі за прямим посиланням.";
+      if (browserBlock) {
+        const tgLink = document.getElementById("guestOpenTgLink");
+        if (tgLink && state.botUsername) {
+          tgLink.href = `https://t.me/${state.botUsername}`;
+          tgLink.textContent = `Відкрити в Telegram (@${state.botUsername})`;
+        }
+        browserBlock.hidden = false;
+      }
     }
   }
 
@@ -630,6 +637,7 @@
     renderAvatarInto(document.getElementById("homeUserAvatar"), u);
     document.getElementById("homeGreeting").textContent = `Привіт, ${u.firstName || name}!`;
     document.getElementById("homeAdminPill").hidden = !state.isAdmin;
+
 
     const sched = state.schedule;
     document.getElementById("homeDateMeta").textContent = sched
@@ -852,6 +860,11 @@
     if (!sched) return;
 
     document.getElementById("scheduleAdminBar").hidden = !state.isAdmin;
+    const notifBtn = document.getElementById("openNotifSettingsBtn");
+    if (notifBtn) {
+      const grpOn = Boolean(sched.notificationSettings?.enabled);
+      notifBtn.textContent = grpOn ? "Сповіщення в чат: Увімк" : "Сповіщення в чат: Вимк";
+    }
     document.getElementById("week1Badge").hidden = Number(sched.currentWeek) !== 1;
     document.getElementById("week2Badge").hidden = Number(sched.currentWeek) !== 2;
 
@@ -1547,6 +1560,10 @@
     document.getElementById("inputFirstName").value = user.firstName || "";
     const bdayInput = document.getElementById("inputBirthday");
     if (bdayInput) bdayInput.value = user.birthday || "";
+    const notifOn = Boolean(user.classNotificationsEnabled);
+    document.querySelectorAll("[data-set-class-notif]").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-set-class-notif") === String(notifOn));
+    });
   }
 
   // ==================== SUBJECT / LECTURER PROFILES ====================
@@ -2016,17 +2033,6 @@
   });
 
   // Guest Gate Listeners
-  document.getElementById("guestSaveIdBtn").addEventListener("click", () => {
-    const val = document.getElementById("guestManualIdInput").value.trim();
-    if (!/^\d+$/.test(val)) {
-      showToast("Введіть коректний числовий Telegram ID");
-      return;
-    }
-    try {
-      localStorage.setItem(USER_ID_STORAGE_KEY, val);
-    } catch {}
-    bootstrap();
-  });
 
   document.getElementById("guestRegisterForm").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -2270,56 +2276,90 @@
     });
   });
 
-  // AI Assistant Listeners
-  const aiModal = document.getElementById("aiAssistantModal");
-  const aiMessagesEl = document.getElementById("aiChatMessages");
-  const aiInput = document.getElementById("aiQuestionInput");
-  const aiSendBtn = document.getElementById("aiSendBtn");
+  // Admin Password Unlock / Lock & AI Assistant (bulletproof delegated listeners)
+  function openAiAssistantModal() {
+    const modal = document.getElementById("aiAssistantModal");
+    if (!modal) return;
+    modal.hidden = false;
+    modal.style.display = "flex";
+    const inp = document.getElementById("aiQuestionInput");
+    setTimeout(() => inp?.focus(), 60);
+  }
 
-  document.getElementById("homeOpenAiBtn")?.addEventListener("click", () => {
-    haptic("light");
-    if (aiModal) {
-      aiModal.hidden = false;
-      setTimeout(() => aiInput?.focus(), 60);
+  function closeAiAssistantModal() {
+    const modal = document.getElementById("aiAssistantModal");
+    if (!modal) return;
+    modal.hidden = true;
+    modal.style.display = "";
+  }
+
+
+  document.addEventListener("click", async (e) => {
+    if (e.target.closest("#homeOpenAiBtn")) {
+      haptic("light");
+      openAiAssistantModal();
+      return;
+    }
+    if (e.target.closest("#closeAiModalBtn") || e.target.id === "aiAssistantModal") {
+      closeAiAssistantModal();
+      return;
+    }
+    const classNotifBtn = e.target.closest("[data-set-class-notif]");
+    if (classNotifBtn) {
+      const enabled = classNotifBtn.getAttribute("data-set-class-notif") === "true";
+      haptic("light");
+      try {
+        const res = await apiFetch("/api/profile/notifications", {
+          method: "POST",
+          body: JSON.stringify({ enabled }),
+        });
+        if (!res.ok) throw new Error(res.error || "Помилка збереження");
+        state.user = { ...state.user, classNotificationsEnabled: Boolean(res.classNotificationsEnabled) };
+        renderProfile();
+        showToast(enabled ? "Сповіщення про пари увімкнено" : "Сповіщення про пари вимкнено");
+      } catch (err) {
+        showToast(err.message);
+      }
+      return;
     }
   });
-  document.getElementById("closeAiModalBtn")?.addEventListener("click", () => {
-    if (aiModal) aiModal.hidden = true;
-  });
-  aiModal?.addEventListener("click", (e) => {
-    if (e.target === aiModal) aiModal.hidden = true;
-  });
 
-  document.getElementById("aiAskForm")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const q = (aiInput?.value || "").trim();
-    if (!q || !aiMessagesEl) return;
-    aiInput.value = "";
+  document.addEventListener("submit", async (e) => {
 
-    const uBubble = document.createElement("div");
-    uBubble.className = "ai-msg ai-msg-user";
-    uBubble.textContent = q;
-    aiMessagesEl.appendChild(uBubble);
+    if (e.target && e.target.id === "aiAskForm") {
+      e.preventDefault();
+      const aiInput = document.getElementById("aiQuestionInput");
+      const aiMessagesEl = document.getElementById("aiChatMessages");
+      const aiSendBtn = document.getElementById("aiSendBtn");
+      const q = (aiInput?.value || "").trim();
+      if (!q || !aiMessagesEl) return;
+      aiInput.value = "";
 
-    const bBubble = document.createElement("div");
-    bBubble.className = "ai-msg ai-msg-bot";
-    bBubble.textContent = "Шукаю в артиклях і довіднику...";
-    aiMessagesEl.appendChild(bBubble);
-    aiMessagesEl.scrollTop = aiMessagesEl.scrollHeight;
+      const uBubble = document.createElement("div");
+      uBubble.className = "ai-msg ai-msg-user";
+      uBubble.textContent = q;
+      aiMessagesEl.appendChild(uBubble);
 
-    if (aiSendBtn) aiSendBtn.disabled = true;
-    try {
-      const res = await apiFetch("/api/ai/ask", {
-        method: "POST",
-        body: JSON.stringify({ question: q }),
-      });
-      if (!res.ok) throw new Error(res.error || "Помилка відповіді ШІ");
-      bBubble.textContent = res.answer || "Немає відповіді.";
-    } catch (err) {
-      bBubble.textContent = `⚠️ ${err.message}`;
-    } finally {
-      if (aiSendBtn) aiSendBtn.disabled = false;
+      const bBubble = document.createElement("div");
+      bBubble.className = "ai-msg ai-msg-bot";
+      bBubble.textContent = "Шукаю в артиклях і довіднику...";
+      aiMessagesEl.appendChild(bBubble);
       aiMessagesEl.scrollTop = aiMessagesEl.scrollHeight;
+
+      if (aiSendBtn) aiSendBtn.disabled = true;
+      try {
+        const res = await apiFetch("/api/ai/ask", {
+          method: "POST",
+          body: JSON.stringify({ question: q }),
+        });
+        if (!res.ok) throw new Error(res.error || "Помилка відповіді ШІ");
+        bBubble.textContent = res.answer || "Немає відповіді.";
+      } catch (err) {
+        bBubble.textContent = `⚠️ ${err.message}`;
+      } finally {
+        if (aiSendBtn) aiSendBtn.disabled = false;
+        aiMessagesEl.scrollTop = aiMessagesEl.scrollHeight;
+      }
     }
   });
 

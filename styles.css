@@ -525,7 +525,8 @@ html[data-theme="dark"] .icon-moon { display: none; }
 .lesson-badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 6px; }
 .lesson-badge.type-lec { background: var(--tg-accent-soft); color: var(--tg-accent); }
 .lesson-badge.type-prac { background: var(--tg-red-soft); color: var(--tg-red); }
-.lesson-badge.type-lab { background: var(--tg-orange-soft); color: var(--tg-orange); }
+.lesson-badge.type-lab { background: rgba(234, 179, 8, 0.16); color: #ca8a04; }
+html[data-theme="dark"] .lesson-badge.type-lab { background: rgba(250, 204, 21, 0.16); color: #facc15; }
 .lesson-badge.type-exam { background: var(--tg-red-soft); color: var(--tg-red); }
 .lesson-badge.type-other { background: var(--tg-purple-soft); color: var(--tg-purple); }
 .lesson-badge.count-pill { background: var(--tg-surface-alt); color: var(--tg-text-secondary); }
@@ -1272,3 +1273,4 @@ html[data-theme="dark"] .icon-moon { display: none; }
   flex: 1;
   min-width: 0;
 }
+
