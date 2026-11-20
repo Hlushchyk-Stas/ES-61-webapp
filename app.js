@@ -1778,60 +1778,172 @@
     document.getElementById("scheduleEventModal").hidden = false;
   }
 
+  function findSavedClassLink(subject, type) {
+    const linksMap = state.schedule?.classLinks || {};
+    const subjTrim = String(subject || "").trim();
+    const typeTrim = String(type || "").trim();
+    if (!subjTrim) return null;
+    const directKey = `${subjTrim}|||${typeTrim}`;
+    if (linksMap[directKey]) return { key: directKey, cfg: linksMap[directKey] };
+    for (const [key, cfg] of Object.entries(linksMap)) {
+      if (
+        String(cfg?.subject || "").trim() === subjTrim &&
+        String(cfg?.type || "").trim().toLowerCase() === typeTrim.toLowerCase()
+      ) {
+        return { key, cfg };
+      }
+    }
+    return null;
+  }
+
+  function setClassLinkSplitUi(isSplit) {
+    const chk = document.getElementById("clSplitCheck");
+    if (chk) chk.checked = Boolean(isSplit);
+    document.getElementById("clSingleWrap").hidden = Boolean(isSplit);
+    document.getElementById("clSubgroupsWrap").hidden = !Boolean(isSplit);
+    document.querySelectorAll("[data-cl-split]").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-cl-split") === String(Boolean(isSplit)));
+    });
+  }
+
+  function loadClassLinkIntoForm(subject, type) {
+    const found = findSavedClassLink(subject, type);
+    const banner = document.getElementById("clStatusBanner");
+    const delBtn = document.getElementById("clDeleteCurrentBtn");
+
+    if (found && found.cfg) {
+      const cfg = found.cfg;
+      document.getElementById("clRoomInput").value = cfg.room || "";
+      setClassLinkSplitUi(Boolean(cfg.splitSubgroups));
+      document.getElementById("clLinkInput").value = cfg.link || "";
+      document.getElementById("clSg1Name").value = cfg.subgroup1Name || "Підгрупа 1";
+      document.getElementById("clSg1Link").value = cfg.subgroup1Link || "";
+      document.getElementById("clSg2Name").value = cfg.subgroup2Name || "Підгрупа 2";
+      document.getElementById("clSg2Link").value = cfg.subgroup2Link || "";
+
+      if (banner) {
+        banner.hidden = false;
+        banner.className = "cl-status-banner";
+        banner.textContent = cfg.splitSubgroups
+          ? `Налаштовано 2 підгрупи: «${cfg.subgroup1Name || "Підгрупа 1"}» та «${cfg.subgroup2Name || "Підгрупа 2"}»`
+          : `Налаштовано посилання: ${cfg.link || "лише аудиторія"}`;
+      }
+      if (delBtn) {
+        delBtn.hidden = false;
+        delBtn.setAttribute("data-current-cl-key", found.key);
+      }
+    } else {
+      document.getElementById("clRoomInput").value = "";
+      setClassLinkSplitUi(false);
+      document.getElementById("clLinkInput").value = "";
+      document.getElementById("clSg1Name").value = "Підгрупа 1";
+      document.getElementById("clSg1Link").value = "";
+      document.getElementById("clSg2Name").value = "Підгрупа 2";
+      document.getElementById("clSg2Link").value = "";
+
+      if (banner) {
+        banner.hidden = !subject;
+        banner.className = "cl-status-banner empty";
+        banner.textContent = "Для цього предмета й типу заняття посилання ще не задано";
+      }
+      if (delBtn) {
+        delBtn.hidden = true;
+        delBtn.removeAttribute("data-current-cl-key");
+      }
+    }
+    renderClassLinksList();
+  }
+
+  async function deleteClassLinkByKey(key) {
+    if (!key) return;
+    if (!confirm("Видалити налаштоване посилання для цієї пари?")) return;
+    try {
+      const res = await apiFetch("/api/schedule/links/delete", {
+        method: "POST",
+        body: JSON.stringify({ key }),
+      });
+      if (!res.ok) throw new Error(res.error || "Помилка видалення");
+      state.schedule = res.schedule;
+      const curSubj = document.getElementById("clSubjectSelect").value;
+      const curType = document.getElementById("clTypeSelect").value;
+      loadClassLinkIntoForm(curSubj, curType);
+      renderSchedule();
+      renderHome();
+      showToast("Посилання видалено");
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
   function renderClassLinksList() {
     const listEl = document.getElementById("classLinksList");
     const linksMap = state.schedule?.classLinks || {};
     const entries = Object.entries(linksMap);
+    const activeSubj = document.getElementById("clSubjectSelect")?.value || "";
+    const activeType = document.getElementById("clTypeSelect")?.value || "";
+
     if (!entries.length) {
       listEl.innerHTML = '<div class="tg-empty-state">Посилань ще не додано</div>';
       return;
     }
+
     listEl.innerHTML = entries
       .map(([key, cfg]) => {
-        const desc = cfg.splitSubgroups
-          ? `${cfg.subgroup1Name || "Підгрупа 1"} / ${cfg.subgroup2Name || "Підгрупа 2"}`
-          : cfg.link || "—";
+        const isCurrent =
+          String(cfg.subject || "").trim() === activeSubj &&
+          String(cfg.type || "").trim().toLowerCase() === activeType.toLowerCase();
+        const typeCls = getLessonTypeClass(cfg.type);
+        let linksBlock = "";
+        if (cfg.splitSubgroups) {
+          linksBlock = `
+            <div class="cl-card-link-row"><b>${escapeHtml(cfg.subgroup1Name || "Підгрупа 1")}:</b> <span>${escapeHtml(cfg.subgroup1Link || "—")}</span></div>
+            <div class="cl-card-link-row"><b>${escapeHtml(cfg.subgroup2Name || "Підгрупа 2")}:</b> <span>${escapeHtml(cfg.subgroup2Link || "—")}</span></div>
+          `;
+        } else {
+          linksBlock = `<div class="cl-card-link-row"><b>Посилання:</b> <span>${escapeHtml(cfg.link || "—")}</span></div>`;
+        }
+        if (cfg.room) {
+          linksBlock += `<div class="cl-card-link-row"><b>Місце:</b> <span>${escapeHtml(cfg.room)}</span></div>`;
+        }
         return `
-          <div class="directory-item-btn" style="cursor:default;">
-            <div style="min-width:0;">
-              <div class="meta-value">${escapeHtml(cfg.subject)} <span class="meta-sub">(${escapeHtml(cfg.type)})</span></div>
-              <div class="meta-sub" style="overflow:hidden; text-overflow:ellipsis;">${escapeHtml(desc)}${cfg.room ? ` · ${escapeHtml(cfg.room)}` : ""}</div>
+          <div class="cl-card${isCurrent ? " active-edit" : ""}">
+            <div class="cl-card-head">
+              <div class="cl-card-title">${escapeHtml(cfg.subject)}</div>
+              <span class="lesson-badge ${typeCls}">${escapeHtml(cfg.type || "Пара")}</span>
             </div>
-            <button type="button" class="tg-btn tg-btn-danger tg-btn-sm" data-del-cl="${escapeAttr(key)}">${ICONS.trash}</button>
+            <div class="cl-card-links">${linksBlock}</div>
+            <div class="cl-card-actions">
+              <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" style="flex:1;" data-edit-cl="${escapeAttr(key)}">${ICONS.edit}<span>Редагувати</span></button>
+              <button type="button" class="tg-btn tg-btn-danger tg-btn-sm" data-del-cl="${escapeAttr(key)}">${ICONS.trash}<span>Видалити</span></button>
+            </div>
           </div>
         `;
       })
       .join("");
-    listEl.querySelectorAll("[data-del-cl]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        try {
-          const res = await apiFetch("/api/schedule/links/delete", {
-            method: "POST",
-            body: JSON.stringify({ key: btn.getAttribute("data-del-cl") }),
-          });
-          if (!res.ok) throw new Error(res.error || "Помилка");
-          state.schedule = res.schedule;
-          renderClassLinksList();
-          renderSchedule();
-          showToast("Посилання видалено");
-        } catch (err) {
-          showToast(err.message);
-        }
+
+    listEl.querySelectorAll("[data-edit-cl]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = btn.getAttribute("data-edit-cl");
+        const cfg = (state.schedule?.classLinks || {})[key];
+        if (!cfg) return;
+        haptic("light");
+        populateSubjectSelect(document.getElementById("clSubjectSelect"), cfg.subject || "", "Оберіть предмет...");
+        populateLessonTypeSelect(document.getElementById("clTypeSelect"), cfg.type || "Лекція");
+        loadClassLinkIntoForm(cfg.subject, cfg.type);
+        const modalCard = document.getElementById("classLinksModalCard");
+        if (modalCard) modalCard.scrollTo({ top: 0, behavior: "smooth" });
       });
+    });
+
+    listEl.querySelectorAll("[data-del-cl]").forEach((btn) => {
+      btn.addEventListener("click", () => deleteClassLinkByKey(btn.getAttribute("data-del-cl")));
     });
   }
 
   function openClassLinksModal() {
     populateSubjectSelect(document.getElementById("clSubjectSelect"), "", "Оберіть предмет...");
     populateLessonTypeSelect(document.getElementById("clTypeSelect"), "Лекція");
-    document.getElementById("clRoomInput").value = "";
-    document.getElementById("clSplitCheck").checked = false;
-    document.getElementById("clSingleWrap").hidden = false;
-    document.getElementById("clSubgroupsWrap").hidden = true;
-    document.getElementById("clLinkInput").value = "";
-    document.getElementById("clSg1Link").value = "";
-    document.getElementById("clSg2Link").value = "";
-    renderClassLinksList();
+    loadClassLinkIntoForm("", "Лекція");
     document.getElementById("classLinksModal").hidden = false;
   }
 
@@ -2164,13 +2276,35 @@
   document.getElementById("closeClassLinksModalBtn").addEventListener("click", () => {
     document.getElementById("classLinksModal").hidden = true;
   });
-  document.getElementById("clSplitCheck").addEventListener("change", (e) => {
-    document.getElementById("clSingleWrap").hidden = e.target.checked;
-    document.getElementById("clSubgroupsWrap").hidden = !e.target.checked;
+  document.getElementById("classLinksModal").addEventListener("click", (e) => {
+    if (e.target.id === "classLinksModal") document.getElementById("classLinksModal").hidden = true;
+  });
+  document.getElementById("clSubjectSelect").addEventListener("change", () => {
+    loadClassLinkIntoForm(
+      document.getElementById("clSubjectSelect").value,
+      document.getElementById("clTypeSelect").value,
+    );
+  });
+  document.getElementById("clTypeSelect").addEventListener("change", () => {
+    loadClassLinkIntoForm(
+      document.getElementById("clSubjectSelect").value,
+      document.getElementById("clTypeSelect").value,
+    );
+  });
+  document.querySelectorAll("[data-cl-split]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      haptic("light");
+      setClassLinkSplitUi(btn.getAttribute("data-cl-split") === "true");
+    });
+  });
+  document.getElementById("clDeleteCurrentBtn").addEventListener("click", () => {
+    const key = document.getElementById("clDeleteCurrentBtn").getAttribute("data-current-cl-key");
+    if (key) deleteClassLinkByKey(key);
   });
   document.getElementById("classLinkForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const subject = document.getElementById("clSubjectSelect").value;
+    const type = document.getElementById("clTypeSelect").value;
     if (!subject) {
       showToast("Оберіть предмет");
       return;
@@ -2181,20 +2315,21 @@
         method: "POST",
         body: JSON.stringify({
           subject,
-          type: document.getElementById("clTypeSelect").value,
+          type,
           room: document.getElementById("clRoomInput").value.trim(),
           splitSubgroups: split,
           link: split ? "" : normalizeUserUrl(document.getElementById("clLinkInput").value.trim()),
-          subgroup1Name: document.getElementById("clSg1Name").value.trim(),
-          subgroup1Link: normalizeUserUrl(document.getElementById("clSg1Link").value.trim()),
-          subgroup2Name: document.getElementById("clSg2Name").value.trim(),
-          subgroup2Link: normalizeUserUrl(document.getElementById("clSg2Link").value.trim()),
+          subgroup1Name: document.getElementById("clSg1Name").value.trim() || "Підгрупа 1",
+          subgroup1Link: split ? normalizeUserUrl(document.getElementById("clSg1Link").value.trim()) : "",
+          subgroup2Name: document.getElementById("clSg2Name").value.trim() || "Підгрупа 2",
+          subgroup2Link: split ? normalizeUserUrl(document.getElementById("clSg2Link").value.trim()) : "",
         }),
       });
       if (!res.ok) throw new Error(res.error || "Помилка збереження");
       state.schedule = res.schedule;
-      renderClassLinksList();
+      loadClassLinkIntoForm(subject, type);
       renderSchedule();
+      renderHome();
       showToast("Посилання збережено!");
     } catch (err) {
       showToast(err.message);

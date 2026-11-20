@@ -25,7 +25,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=48" />
+  <link rel="stylesheet" href="/styles.css?v=49" />
 </head>
 <body>
   <!-- FULLSCREEN CONNECTION / LOADING OVERLAY -->
@@ -645,9 +645,9 @@
 
   <!-- MODAL: CLASS LINKS & SUBGROUPS (ADMIN) -->
   <div class="tg-modal-backdrop" id="classLinksModal" hidden>
-    <div class="tg-modal tg-modal-large">
+    <div class="tg-modal tg-modal-large" id="classLinksModalCard">
       <div class="tg-modal-header">
-        <div class="tg-modal-title">Посилання та підгрупи за предметом</div>
+        <div class="tg-modal-title">Посилання на пари та підгрупи</div>
         <button class="tg-icon-btn" id="closeClassLinksModalBtn" type="button" aria-label="Закрити">
           <svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
@@ -663,33 +663,53 @@
             <select id="clTypeSelect" class="tg-input-box"></select>
           </div>
         </div>
+        <div id="clStatusBanner" class="cl-status-banner" hidden></div>
         <div class="tg-field-group">
-          <label class="tg-field-label" for="clRoomInput">Аудиторія (необов'язково)</label>
+          <label class="tg-field-label" for="clRoomInput">Аудиторія / місце (необов'язково)</label>
           <input type="text" id="clRoomInput" class="tg-input-box" placeholder="Наприклад: Онлайн / 20-314" />
         </div>
-        <label class="tg-checkbox-row">
-          <input type="checkbox" id="clSplitCheck" />
-          <span>Поділити на 2 підгрупи (2 посилання на 1 пару)</span>
-        </label>
+        <div class="theme-option-row" style="padding:2px 0;">
+          <div>
+            <div class="meta-value" style="font-size:14px;">Поділ на 2 підгрупи</div>
+            <div class="meta-sub">Два окремі посилання з власними назвами</div>
+          </div>
+          <div class="theme-segmented" role="group" aria-label="Поділ на 2 підгрупи">
+            <button type="button" class="theme-seg-btn" data-cl-split="false">1 посилання</button>
+            <button type="button" class="theme-seg-btn" data-cl-split="true">2 підгрупи</button>
+          </div>
+        </div>
+        <input type="checkbox" id="clSplitCheck" hidden />
+
         <div id="clSingleWrap" class="tg-field-group">
           <label class="tg-field-label" for="clLinkInput">Посилання на заняття</label>
-          <input type="text" id="clLinkInput" class="tg-input-box" placeholder="zoom.us/..." />
+          <input type="text" id="clLinkInput" class="tg-input-box" placeholder="zoom.us/... або meet.google.com/..." />
         </div>
+
         <div id="clSubgroupsWrap" class="modal-form-stack" hidden>
-          <div class="modal-grid-2">
-            <input type="text" id="clSg1Name" class="tg-input-box" value="Підгрупа 1" />
-            <input type="text" id="clSg1Link" class="tg-input-box" placeholder="Посилання 1 підгрупи" />
+          <div class="cl-subgroup-box">
+            <div class="tg-field-label">Підгрупа 1</div>
+            <div class="modal-grid-2">
+              <input type="text" id="clSg1Name" class="tg-input-box" placeholder="Назва (напр. 1 підгрупа)" value="Підгрупа 1" />
+              <input type="text" id="clSg1Link" class="tg-input-box" placeholder="Посилання 1 підгрупи" />
+            </div>
           </div>
-          <div class="modal-grid-2">
-            <input type="text" id="clSg2Name" class="tg-input-box" value="Підгрупа 2" />
-            <input type="text" id="clSg2Link" class="tg-input-box" placeholder="Посилання 2 підгрупи" />
+          <div class="cl-subgroup-box">
+            <div class="tg-field-label">Підгрупа 2</div>
+            <div class="modal-grid-2">
+              <input type="text" id="clSg2Name" class="tg-input-box" placeholder="Назва (напр. 2 підгрупа)" value="Підгрупа 2" />
+              <input type="text" id="clSg2Link" class="tg-input-box" placeholder="Посилання 2 підгрупи" />
+            </div>
           </div>
         </div>
-        <button type="submit" class="tg-btn tg-btn-primary tg-btn-full">Зберегти посилання</button>
+
+        <div class="tg-form-actions">
+          <button type="button" class="tg-btn tg-btn-danger" id="clDeleteCurrentBtn" hidden>Видалити посилання</button>
+          <button type="submit" class="tg-btn tg-btn-primary" style="flex:1;" id="clSaveSubmitBtn">Зберегти посилання</button>
+        </div>
       </form>
       <div class="tg-divider"></div>
-      <div class="meta-label">Налаштовані посилання:</div>
-      <div id="classLinksList" class="directory-list"></div>
+      <div class="meta-label">Налаштовані посилання (натисніть для редагування):</div>
+      <div id="classLinksList" class="cl-cards-list"></div>
     </div>
   </div>
 
@@ -773,7 +793,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=48"></script>
+  <script src="/app.js?v=49"></script>
 
 </body>
 </html>
