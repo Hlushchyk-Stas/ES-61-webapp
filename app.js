@@ -474,8 +474,13 @@
       document.getElementById("regLastName").value = state.user?.lastName || "";
       document.getElementById("regFirstName").value = state.user?.firstName || "";
     } else {
-      titleEl.textContent = "Вхід через браузер заборонено";
-      descEl.textContent = "Авторизація та реєстрація доступні лише всередині Telegram-бота. У браузері можна переглядати тільки окремі артиклі за прямим посиланням.";
+      if (state.authReason === "wrong_bot_signature") {
+        titleEl.textContent = "Відкрито через іншого бота";
+        descEl.textContent = "Підпис Telegram належить іншому боту. Відкрийте додаток через основного бота @ES61bot (кнопка меню «ЕС-61 App»).";
+      } else {
+        titleEl.textContent = "Вхід через браузер заборонено";
+        descEl.textContent = "Авторизація та реєстрація доступні лише всередині Telegram-бота. У браузері можна переглядати тільки окремі артиклі за прямим посиланням.";
+      }
       if (browserBlock) {
         const tgLink = document.getElementById("guestOpenTgLink");
         if (tgLink && state.botUsername) {
@@ -1945,6 +1950,7 @@
 
       state.user = data.user;
       state.isAdmin = Boolean(data.isAdmin);
+      state.authReason = data.authReason || "";
       state.isVerified = Boolean(data.isVerified);
       state.userStatus = data.userStatus || (state.isVerified ? "verified" : "guest");
       state.authMode = data.authMode;
