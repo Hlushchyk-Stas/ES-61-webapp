@@ -558,10 +558,23 @@
     // Security: strip any raw <script> tags from article body HTML
     bodyEl.querySelectorAll("script").forEach((s) => s.remove());
 
-    // Apply default collapsed state for Wikipedia-style collapsible sections
+    // Hydrate Wikipedia-style collapsible blocks (div-based + legacy details)
     bodyEl.querySelectorAll("details.tg-article-spoiler").forEach((det) => {
-      if (det.getAttribute("data-default-closed") === "1") {
-        det.removeAttribute("open");
+      if (det.getAttribute("data-default-closed") === "1") det.removeAttribute("open");
+    });
+    bodyEl.querySelectorAll(".tg-spoiler-block").forEach((blk) => {
+      blk.querySelectorAll(".tg-spoiler-del-btn").forEach((b) => b.remove());
+      if (blk.getAttribute("data-default-closed") === "1") {
+        blk.classList.add("is-collapsed");
+      } else {
+        blk.classList.remove("is-collapsed");
+      }
+      const hdr = blk.querySelector(".tg-spoiler-header");
+      if (hdr) {
+        hdr.addEventListener("click", () => {
+          haptic("light");
+          blk.classList.toggle("is-collapsed");
+        });
       }
     });
 
@@ -3306,6 +3319,11 @@
       const box = delBtn.closest(".article-code-embed");
       if (box) box.remove();
     }
+    const delSp = e.target.closest("[data-del-spoiler]");
+    if (delSp) {
+      const blk = delSp.closest(".tg-spoiler-block");
+      if (blk) blk.remove();
+    }
   });
 
   const closeArtTableModal = () => { document.getElementById("articleTableModal").hidden = true; };
@@ -3372,18 +3390,33 @@
     const title = document.getElementById("artSpoilerTitleInput").value.trim() || "Розділ";
     const defaultClosed = document.getElementById("artSpoilerCollapsedCheck").checked;
 
-    const det = document.createElement("details");
-    det.className = "tg-article-spoiler";
-    det.setAttribute("open", "");
-    det.setAttribute("data-default-closed", defaultClosed ? "1" : "0");
+    const blk = document.createElement("div");
+    blk.className = "tg-spoiler-block";
+    blk.setAttribute("data-default-closed", defaultClosed ? "1" : "0");
 
-    const sum = document.createElement("summary");
-    sum.textContent = title;
+    const hdr = document.createElement("div");
+    hdr.className = "tg-spoiler-header";
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "tg-spoiler-title";
+    titleSpan.textContent = title;
+    const chev = document.createElement("span");
+    chev.className = "tg-spoiler-chevron";
+    chev.setAttribute("contenteditable", "false");
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "tg-spoiler-del-btn";
+    delBtn.setAttribute("contenteditable", "false");
+    delBtn.setAttribute("data-del-spoiler", "1");
+    delBtn.textContent = "✕";
+    hdr.appendChild(titleSpan);
+    hdr.appendChild(chev);
+    hdr.appendChild(delBtn);
+
     const body = document.createElement("div");
     body.className = "tg-spoiler-body";
-    body.innerHTML = "<p>Введіть текст розділу...</p>";
-    det.appendChild(sum);
-    det.appendChild(body);
+    body.innerHTML = "<p>Текст розділу...</p>";
+    blk.appendChild(hdr);
+    blk.appendChild(body);
 
     const editor = document.getElementById("editArticleBody");
     editor.focus();
@@ -3401,9 +3434,9 @@
       const pAfter = document.createElement("p");
       pAfter.innerHTML = "<br>";
       range.insertNode(pAfter);
-      range.insertNode(det);
+      range.insertNode(blk);
     } else {
-      editor.appendChild(det);
+      editor.appendChild(blk);
     }
     closeArtSpoilerModal();
   });
@@ -3700,6 +3733,8 @@
 
     // Normalize relative /api/media/ src attributes before saving
     const clone = ed.cloneNode(true);
+    clone.querySelectorAll(".tg-spoiler-del-btn").forEach((b) => b.remove());
+    clone.querySelectorAll(".tg-spoiler-block").forEach((b) => b.classList.remove("is-collapsed"));
     clone.querySelectorAll("img").forEach((img) => {
       img.classList.remove("selected-photo");
       const orig = img.getAttribute("data-orig-src");
