@@ -37,7 +37,7 @@
     5: { start: "16:10", end: "17:45" },
     6: { start: "18:30", end: "20:05" },
   };
-  const APP_ROUTES = new Set(["/home", "/schedule", "/tasks", "/articles", "/users", "/profile"]);
+  const APP_ROUTES = new Set(["/home", "/schedule", "/tasks", "/articles", "/users", "/profile", "/ai"]);
 
   const ICONS = {
     user: '<svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
@@ -420,6 +420,8 @@
     document.getElementById("guestGateView").hidden = true;
     document.getElementById("articleReaderPage").hidden = true;
     document.getElementById("articleEditorPage").hidden = true;
+    const aiPage = document.getElementById("aiChatPage");
+    if (aiPage) aiPage.hidden = true;
   }
 
   function showMainTab(tabName) {
@@ -653,6 +655,7 @@
       else if (tab === "articles") renderArticles();
       else if (tab === "users") { if (!state.isAdmin) { navigateTo("/home", true); return; } renderUsers(); }
       else if (tab === "profile") renderProfile();
+      else if (tab === "ai") openAiChatPage();
       return;
     }
 
@@ -2846,34 +2849,338 @@
     });
   });
 
-  // Admin Password Unlock / Lock & AI Assistant (bulletproof delegated listeners)
-  function openAiAssistantModal() {
-    const modal = document.getElementById("aiAssistantModal");
-    if (!modal) return;
-    modal.hidden = false;
-    modal.style.display = "flex";
-    const inp = document.getElementById("aiQuestionInput");
-    setTimeout(() => inp?.focus(), 60);
+  // ==================== DEDICATED /ai MULTI-CHAT & VISION PAGE ====================
+  state.aiChats = [];
+  state.activeAiChatId = null;
+  state.pendingAiImageDataUrl = "";
+  state.aiBusy = false;
+
+  function formatAiTextHtml(rawText) {
+    const escaped = escapeHtml(String(rawText || ""));
+    return escaped
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+      .split(/\n{2,}/)
+      .map((para) => `<p>${para.replace(/\n/g, "<br>")}</p>`)
+      .join("");
   }
 
-  function closeAiAssistantModal() {
-    const modal = document.getElementById("aiAssistantModal");
-    if (!modal) return;
-    modal.hidden = true;
-    modal.style.display = "";
+  function formatRelativeShort(ts) {
+    if (!ts) return "";
+    const diffMin = Math.max(0, Math.floor((Date.now() - ts) / 60000));
+    if (diffMin < 1) return "щойно";
+    if (diffMin < 60) return `${diffMin} хв тому`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr} год тому`;
+    return `${Math.floor(diffHr / 24)} дн тому`;
   }
 
+  function getActiveAiChat() {
+    return (state.aiChats || []).find((c) => c.id === state.activeAiChatId) || null;
+  }
 
-  document.addEventListener("click", async (e) => {
-    if (e.target.closest("#homeOpenAiBtn")) {
+  function renderAiChatsDrawer() {
+    const listEl = document.getElementById("aiChatsList");
+    if (!listEl) return;
+    const chats = state.aiChats || [];
+    if (!chats.length) {
+      listEl.innerHTML = '<div class="meta-sub" style="padding:12px 6px; text-align:center;">Чатів поки немає</div>';
+      return;
+    }
+    listEl.innerHTML = chats
+      .map((c) => {
+        const isActive = c.id === state.activeAiChatId;
+        const msgCount = Array.isArray(c.messages) ? c.messages.length : 0;
+        return `
+          <div class="ai-drawer-item${isActive ? " active" : ""}" data-select-ai-chat="${escapeAttr(c.id)}">
+            <div class="ai-drawer-item-main">
+              <div class="ai-drawer-item-title">${escapeHtml(c.title || "Новий чат")}</div>
+              <div class="ai-drawer-item-meta">${msgCount} повід. · ${escapeHtml(formatRelativeShort(c.updatedAt || c.createdAt))}</div>
+            </div>
+            <button type="button" class="ai-drawer-del" data-del-ai-chat="${escapeAttr(c.id)}" title="Видалити чат">✕</button>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  function renderAiMessagesView() {
+    const scrollEl = document.getElementById("aiPageMessages");
+    const titleEl = document.getElementById("aiActiveChatTitle");
+    if (!scrollEl) return;
+    const chat = getActiveAiChat();
+    if (titleEl) titleEl.textContent = chat?.title || "Новий чат";
+
+    const msgs = Array.isArray(chat?.messages) ? chat.messages : [];
+    if (!msgs.length && !state.aiBusy) {
+      scrollEl.innerHTML = `
+        <div class="ai-empty-hero">
+          <div class="ai-empty-icon">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>
+          </div>
+          <div class="ai-empty-title">Чим допомогти?</div>
+          <div class="ai-empty-sub">Я бачу контекст цього чату, базу артиклів, викладачів, розклад і зображення, які ви надсилаєте.</div>
+          <div class="ai-suggestions">
+            <button type="button" class="ai-suggestion-chip" data-ai-suggest="Які пари сьогодні за розкладом?">Які пари сьогодні?</button>
+            <button type="button" class="ai-suggestion-chip" data-ai-suggest="Хто веде предмети на цьому тижні?">Викладачі й предмети</button>
+            <button type="button" class="ai-suggestion-chip" data-ai-suggest="Що є в останніх артиклях групи?">Останні артиклі</button>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    scrollEl.innerHTML = msgs
+      .map((m, i) => {
+        if (m.role === "user") {
+          const imgHtml = m.localPreviewUrl
+            ? `<img class="ai-turn-user-img" src="${escapeAttr(m.localPreviewUrl)}" alt="Фото" />`
+            : m.hasImage
+              ? `<div class="ai-turn-user-img-badge">🖼 Зображення</div><br>`
+              : "";
+          return `<div class="ai-turn-user">${imgHtml}${escapeHtml(m.text || "")}</div>`;
+        }
+        return `
+          <div class="ai-turn-model">
+            <div>${formatAiTextHtml(m.text || "")}</div>
+            <div class="ai-turn-actions">
+              <button type="button" class="ai-copy-btn" data-copy-ai-idx="${i}">Копіювати</button>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    if (state.aiBusy) {
+      const dots = document.createElement("div");
+      dots.className = "ai-turn-model";
+      dots.innerHTML = '<div class="ai-typing-dots"><span></span><span></span><span></span></div>';
+      scrollEl.appendChild(dots);
+    }
+
+    scrollEl.scrollTop = scrollEl.scrollHeight;
+  }
+
+  async function openAiChatPage() {
+    hideAllTopLevelViews();
+    const page = document.getElementById("aiChatPage");
+    if (page) page.hidden = false;
+    document.title = "ШІ Помічник";
+    try {
+      const res = await apiFetch("/api/ai/chats");
+      if (res.ok && Array.isArray(res.chats)) {
+        state.aiChats = res.chats;
+        if (!state.activeAiChatId || !state.aiChats.some((c) => c.id === state.activeAiChatId)) {
+          state.activeAiChatId = state.aiChats[0]?.id || null;
+        }
+      }
+    } catch {}
+    renderAiChatsDrawer();
+    renderAiMessagesView();
+  }
+
+  async function createNewAiChat() {
+    try {
+      const res = await apiFetch("/api/ai/chats/create", { method: "POST" });
+      if (res.ok && res.chat) {
+        state.aiChats = res.chats || [res.chat, ...(state.aiChats || [])];
+        state.activeAiChatId = res.chat.id;
+      } else {
+        state.activeAiChatId = null;
+      }
+    } catch {
+      state.activeAiChatId = null;
+    }
+    const drawer = document.getElementById("aiChatsDrawer");
+    if (drawer) drawer.hidden = true;
+    renderAiChatsDrawer();
+    renderAiMessagesView();
+    document.getElementById("aiPageInput")?.focus();
+  }
+
+  function clearPendingAiImage() {
+    state.pendingAiImageDataUrl = "";
+    const prev = document.getElementById("aiAttachPreview");
+    const thumb = document.getElementById("aiAttachThumb");
+    if (prev) prev.hidden = true;
+    if (thumb) thumb.src = "";
+  }
+
+  async function sendAiChatMessage(overrideText = null) {
+    if (state.aiBusy) return;
+    const inp = document.getElementById("aiPageInput");
+    const question = (overrideText !== null ? String(overrideText) : inp?.value || "").trim();
+    const imgUrl = state.pendingAiImageDataUrl || "";
+    if (!question && !imgUrl) return;
+
+    if (inp && overrideText === null) {
+      inp.value = "";
+      inp.style.height = "auto";
+    }
+    clearPendingAiImage();
+
+    let activeChat = getActiveAiChat();
+    if (!activeChat) {
+      activeChat = {
+        id: "__pending__",
+        title: question ? question.slice(0, 42) : "Фото-запит",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        messages: [],
+      };
+      state.aiChats = [activeChat, ...(state.aiChats || [])];
+      state.activeAiChatId = activeChat.id;
+    }
+    activeChat.messages.push({
+      role: "user",
+      text: question,
+      hasImage: Boolean(imgUrl),
+      localPreviewUrl: imgUrl || "",
+      ts: Date.now(),
+    });
+
+    state.aiBusy = true;
+    const sendBtn = document.getElementById("aiPageSendBtn");
+    if (sendBtn) sendBtn.disabled = true;
+    renderAiMessagesView();
+
+    try {
+      const res = await apiFetch("/api/ai/ask", {
+        method: "POST",
+        body: JSON.stringify({
+          chatId: activeChat.id === "__pending__" ? "" : activeChat.id,
+          question,
+          imageDataUrl: imgUrl || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error(res.error || "Помилка відповіді ШІ");
+      state.aiChats = res.chats || state.aiChats;
+      if (res.chat?.id) state.activeAiChatId = res.chat.id;
+    } catch (err) {
+      activeChat.messages.push({
+        role: "model",
+        text: `⚠️ ${err.message}`,
+        ts: Date.now(),
+      });
+    } finally {
+      state.aiBusy = false;
+      if (sendBtn) sendBtn.disabled = false;
+      renderAiChatsDrawer();
+      renderAiMessagesView();
+    }
+  }
+
+  document.getElementById("aiBackHomeBtn")?.addEventListener("click", () => {
+    haptic("light");
+    navigateTo("/home");
+  });
+  document.getElementById("aiOpenDrawerBtn")?.addEventListener("click", () => {
+    haptic("light");
+    renderAiChatsDrawer();
+    const d = document.getElementById("aiChatsDrawer");
+    if (d) d.hidden = false;
+  });
+  document.getElementById("aiCloseDrawerBtn")?.addEventListener("click", () => {
+    const d = document.getElementById("aiChatsDrawer");
+    if (d) d.hidden = true;
+  });
+  document.getElementById("aiChatsDrawer")?.addEventListener("click", async (e) => {
+    if (e.target.id === "aiChatsDrawer") {
+      e.target.hidden = true;
+      return;
+    }
+    const delBtn = e.target.closest("[data-del-ai-chat]");
+    if (delBtn) {
+      e.stopPropagation();
+      const cid = delBtn.getAttribute("data-del-ai-chat");
+      if (!confirm("Видалити цей чат?")) return;
+      try {
+        const res = await apiFetch("/api/ai/chats/delete", {
+          method: "POST",
+          body: JSON.stringify({ chatId: cid }),
+        });
+        if (res.ok) {
+          state.aiChats = res.chats || [];
+          if (state.activeAiChatId === cid) {
+            state.activeAiChatId = state.aiChats[0]?.id || null;
+          }
+          renderAiChatsDrawer();
+          renderAiMessagesView();
+        }
+      } catch (err) {
+        showToast(err.message);
+      }
+      return;
+    }
+    const item = e.target.closest("[data-select-ai-chat]");
+    if (item) {
+      state.activeAiChatId = item.getAttribute("data-select-ai-chat");
+      document.getElementById("aiChatsDrawer").hidden = true;
+      renderAiChatsDrawer();
+      renderAiMessagesView();
+    }
+  });
+  document.getElementById("aiNewChatTopBtn")?.addEventListener("click", () => {
+    haptic("light");
+    createNewAiChat();
+  });
+  document.getElementById("aiNewChatDrawerBtn")?.addEventListener("click", () => {
+    haptic("light");
+    createNewAiChat();
+  });
+  document.getElementById("aiAttachRemoveBtn")?.addEventListener("click", clearPendingAiImage);
+  document.getElementById("aiImageFileInput")?.addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const dataUrl = await compressImageFile(file, 1024, 0.8);
+      state.pendingAiImageDataUrl = dataUrl;
+      const thumb = document.getElementById("aiAttachThumb");
+      const prev = document.getElementById("aiAttachPreview");
+      if (thumb) thumb.src = dataUrl;
+      if (prev) prev.hidden = false;
+    } catch (err) {
+      showToast(err.message || "Не вдалося обробити фото");
+    }
+  });
+  document.getElementById("aiPageInput")?.addEventListener("input", (e) => {
+    e.target.style.height = "auto";
+    e.target.style.height = Math.min(130, e.target.scrollHeight) + "px";
+  });
+  document.getElementById("aiPageInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendAiChatMessage();
+    }
+  });
+  document.getElementById("aiPageForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    sendAiChatMessage();
+  });
+  document.getElementById("aiPageMessages")?.addEventListener("click", async (e) => {
+    const sug = e.target.closest("[data-ai-suggest]");
+    if (sug) {
       haptic("light");
-      openAiAssistantModal();
+      sendAiChatMessage(sug.getAttribute("data-ai-suggest"));
       return;
     }
-    if (e.target.closest("#closeAiModalBtn") || e.target.id === "aiAssistantModal") {
-      closeAiAssistantModal();
-      return;
+    const copyBtn = e.target.closest("[data-copy-ai-idx]");
+    if (copyBtn) {
+      const idx = Number(copyBtn.getAttribute("data-copy-ai-idx"));
+      const chat = getActiveAiChat();
+      const txt = chat?.messages?.[idx]?.text || "";
+      if (txt) {
+        try {
+          await navigator.clipboard.writeText(txt);
+          showToast("Скопійовано!");
+        } catch {}
+      }
     }
+  });
+
+  // Delegated personal class-notifications toggle in /profile
+  document.addEventListener("click", async (e) => {
     const classNotifBtn = e.target.closest("[data-set-class-notif]");
     if (classNotifBtn) {
       const enabled = classNotifBtn.getAttribute("data-set-class-notif") === "true";
@@ -2889,46 +3196,6 @@
         showToast(enabled ? "Сповіщення про пари увімкнено" : "Сповіщення про пари вимкнено");
       } catch (err) {
         showToast(err.message);
-      }
-      return;
-    }
-  });
-
-  document.addEventListener("submit", async (e) => {
-
-    if (e.target && e.target.id === "aiAskForm") {
-      e.preventDefault();
-      const aiInput = document.getElementById("aiQuestionInput");
-      const aiMessagesEl = document.getElementById("aiChatMessages");
-      const aiSendBtn = document.getElementById("aiSendBtn");
-      const q = (aiInput?.value || "").trim();
-      if (!q || !aiMessagesEl) return;
-      aiInput.value = "";
-
-      const uBubble = document.createElement("div");
-      uBubble.className = "ai-msg ai-msg-user";
-      uBubble.textContent = q;
-      aiMessagesEl.appendChild(uBubble);
-
-      const bBubble = document.createElement("div");
-      bBubble.className = "ai-msg ai-msg-bot";
-      bBubble.textContent = "Шукаю в артиклях і довіднику...";
-      aiMessagesEl.appendChild(bBubble);
-      aiMessagesEl.scrollTop = aiMessagesEl.scrollHeight;
-
-      if (aiSendBtn) aiSendBtn.disabled = true;
-      try {
-        const res = await apiFetch("/api/ai/ask", {
-          method: "POST",
-          body: JSON.stringify({ question: q }),
-        });
-        if (!res.ok) throw new Error(res.error || "Помилка відповіді ШІ");
-        bBubble.textContent = res.answer || "Немає відповіді.";
-      } catch (err) {
-        bBubble.textContent = `⚠️ ${err.message}`;
-      } finally {
-        if (aiSendBtn) aiSendBtn.disabled = false;
-        aiMessagesEl.scrollTop = aiMessagesEl.scrollHeight;
       }
     }
   });

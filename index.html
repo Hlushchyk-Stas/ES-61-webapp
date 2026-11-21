@@ -25,7 +25,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=57" />
+  <link rel="stylesheet" href="/styles.css?v=58" />
 </head>
 <body>
   <!-- FULLSCREEN CONNECTION / LOADING OVERLAY -->
@@ -164,7 +164,7 @@
             <div class="home-tile-sub">Аватар, ПІБ і тема</div>
           </button>
 
-          <button type="button" class="home-tile home-tile-wide" id="homeOpenAiBtn">
+          <button type="button" class="home-tile home-tile-wide" id="homeOpenAiBtn" data-route="/ai">
             <div class="home-tile-icon tile-ai">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3v-3a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/><circle cx="9.5" cy="11.5" r="1"/><circle cx="14.5" cy="11.5" r="1"/></svg>
             </div>
@@ -780,26 +780,57 @@
 
   <div class="tg-toast" id="toastEl" hidden></div>
 
-  <!-- MODAL: AI ASSISTANT -->
-  <div class="tg-modal-backdrop" id="aiAssistantModal" hidden>
-    <div class="tg-modal tg-modal-lg ai-modal-box">
-      <div class="tg-modal-header">
-        <div class="tg-modal-title">ШІ Помічник</div>
-        <button type="button" class="tg-icon-btn" id="closeAiModalBtn" aria-label="Закрити">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="ai-chat-messages" id="aiChatMessages">
-        <div class="ai-msg ai-msg-bot">
-          Задай питання щодо предметів, викладачів, розкладу чи артиклів.
+  <!-- DEDICATED FULL-SCREEN AI CHAT PAGE (/ai) -->
+  <section id="aiChatPage" class="ai-app-page" hidden>
+    <header class="ai-app-header">
+      <button type="button" class="ai-hdr-btn" id="aiBackHomeBtn" aria-label="Назад" title="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+      <button type="button" class="ai-hdr-btn" id="aiOpenDrawerBtn" aria-label="Чати" title="Мої чати">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="17" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="ai-hdr-title" id="aiActiveChatTitle">Новий чат</div>
+      <button type="button" class="ai-hdr-btn" id="aiNewChatTopBtn" aria-label="Новий чат" title="Новий чат">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </header>
+
+    <div class="ai-drawer-backdrop" id="aiChatsDrawer" hidden>
+      <aside class="ai-drawer-panel">
+        <div class="ai-drawer-head">
+          <span class="ai-drawer-title">Мої чати</span>
+          <button type="button" class="ai-hdr-btn" id="aiCloseDrawerBtn" aria-label="Закрити">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
+        <button type="button" class="ai-new-chat-btn" id="aiNewChatDrawerBtn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Новий чат</span>
+        </button>
+        <div class="ai-drawer-list" id="aiChatsList"></div>
+        <div class="ai-drawer-foot">Неактивні чати автоматично видаляються через 7 днів.</div>
+      </aside>
+    </div>
+
+    <div class="ai-app-scroll" id="aiPageMessages"></div>
+
+    <div class="ai-composer-shell">
+      <div class="ai-attach-preview" id="aiAttachPreview" hidden>
+        <img id="aiAttachThumb" alt="Прикріплене фото" />
+        <button type="button" class="ai-attach-remove" id="aiAttachRemoveBtn" aria-label="Видалити фото">✕</button>
       </div>
-      <form class="ai-chat-form" id="aiAskForm">
-        <input type="text" id="aiQuestionInput" class="tg-input-box" placeholder="Ваше запитання..." maxlength="1500" autocomplete="off" />
-        <button type="submit" class="tg-btn tg-btn-primary" id="aiSendBtn">Запитати</button>
+      <form class="ai-composer-pill" id="aiPageForm">
+        <label for="aiImageFileInput" class="ai-composer-icon-btn" title="Прикріпити зображення">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </label>
+        <input type="file" id="aiImageFileInput" class="sr-file-input" accept="image/*" />
+        <textarea id="aiPageInput" class="ai-composer-textarea" rows="1" placeholder="Запитайте що завгодно..." maxlength="3000"></textarea>
+        <button type="submit" class="ai-send-circle" id="aiPageSendBtn" aria-label="Надіслати">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+        </button>
       </form>
     </div>
-  </div>
+  </section>
 
   <!-- MODAL: EDIT USER PROFILE (ADMIN / OWNER) -->
   <div class="tg-modal-backdrop" id="editUserModal" hidden>
@@ -918,7 +949,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=57"></script>
+  <script src="/app.js?v=58"></script>
 
 </body>
 </html>
