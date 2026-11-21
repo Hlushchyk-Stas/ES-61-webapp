@@ -37,7 +37,7 @@
     5: { start: "16:10", end: "17:45" },
     6: { start: "18:30", end: "20:05" },
   };
-  const APP_ROUTES = new Set(["/home", "/schedule", "/tasks", "/articles", "/users", "/profile", "/ai"]);
+  const APP_ROUTES = new Set(["/home", "/schedule", "/tasks", "/posts", "/users", "/profile", "/ai"]);
 
   const ICONS = {
     user: '<svg class="tg-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
@@ -478,11 +478,12 @@
     const shell = document.getElementById("appShell");
     shell.hidden = false;
     const bottomNav = document.querySelector(".tg-bottom-nav");
-    const isGuestCatalog = !state.isVerified && tabName === "articles";
+    const isGuestCatalog = !state.isVerified && tabName === "posts";
     shell.classList.toggle("guest-articles-mode", isGuestCatalog);
     if (bottomNav) bottomNav.hidden = isGuestCatalog;
+    const panelId = tabName === "posts" ? "tab-articles" : `tab-${tabName}`;
     document.querySelectorAll(".tab-panel").forEach((panel) => {
-      panel.classList.toggle("active", panel.id === `tab-${tabName}`);
+      panel.classList.toggle("active", panel.id === panelId);
     });
     document.querySelectorAll(".tg-tab-item").forEach((pill) => {
       pill.classList.toggle("active", pill.getAttribute("data-route") === `/${tabName}`);
@@ -606,7 +607,7 @@
     if (!art) {
       if (state.isVerified) {
         showToast("Статтю не знайдено");
-        navigateTo("/articles", true);
+        navigateTo("/posts", true);
       } else {
         readerPage.hidden = false;
         subjEl.hidden = true;
@@ -691,7 +692,7 @@
 
   function openArticleEditorBySlug(slug = null) {
     if (!state.isAdmin) {
-      navigateTo("/articles", true);
+      navigateTo("/posts", true);
       return;
     }
     const art = slug
@@ -731,34 +732,42 @@
   function renderCurrentRoute() {
     const pathname = getNormalizedPath();
 
+    const isBrowserGuest = !state.isVerified && !isTelegramMiniApp();
+
+    // Legacy /articles -> /posts redirect
+    if (pathname === "/articles") {
+      return navigateTo("/posts", true);
+    }
+
     // Admin article editor routes
-    if (pathname === "/articles/new") {
-      if (!state.isVerified) return renderGuestGate();
+    if (pathname === "/posts/new" || pathname === "/articles/new") {
+      if (!state.isVerified) return isBrowserGuest ? navigateTo("/posts", true) : renderGuestGate();
       return openArticleEditorBySlug(null);
     }
-    if (pathname.startsWith("/articles/edit/")) {
-      if (!state.isVerified) return renderGuestGate();
-      const slug = decodeURIComponent(pathname.slice("/articles/edit/".length));
+    if (pathname.startsWith("/posts/edit/") || pathname.startsWith("/articles/edit/")) {
+      if (!state.isVerified) return isBrowserGuest ? navigateTo("/posts", true) : renderGuestGate();
+      const prefix = pathname.startsWith("/posts/edit/") ? "/posts/edit/" : "/articles/edit/";
+      const slug = decodeURIComponent(pathname.slice(prefix.length));
       return openArticleEditorBySlug(slug);
     }
 
-    // Root route
+    // Root route: browser visitors go straight to public /posts catalog
     if (pathname === "/") {
-      if (!state.isVerified) return renderGuestGate();
+      if (!state.isVerified) return isBrowserGuest ? navigateTo("/posts", true) : renderGuestGate();
       return navigateTo("/home", true);
     }
 
-    // Public articles catalog is accessible to unregistered guests too (public articles only)
-    if (pathname === "/articles") {
+    // Public posts catalog is accessible to unregistered guests too (public posts only)
+    if (pathname === "/posts") {
       document.title = state.isVerified ? "ЕС-61 · Веб-додаток" : "Статті · ЕС-61";
-      showMainTab("articles");
+      showMainTab("posts");
       renderArticles();
       return;
     }
 
-    // Standard verified app routes
+    // Standard verified app routes: browser visitors redirect to /posts
     if (APP_ROUTES.has(pathname)) {
-      if (!state.isVerified) return renderGuestGate();
+      if (!state.isVerified) return isBrowserGuest ? navigateTo("/posts", true) : renderGuestGate();
       const tab = pathname.slice(1);
       document.title = "ЕС-61 · Веб-додаток";
       showMainTab(tab);
@@ -1629,7 +1638,7 @@
     });
     container.querySelectorAll("[data-edit-slug]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        navigateTo(`/articles/edit/${encodeURIComponent(btn.getAttribute("data-edit-slug"))}`);
+        navigateTo(`/posts/edit/${encodeURIComponent(btn.getAttribute("data-edit-slug"))}`);
       });
     });
     container.querySelectorAll("[data-del-article]").forEach((btn) => {
@@ -2499,7 +2508,9 @@
         ).trim();
         if (rawStartParam) {
           const lowerParam = rawStartParam.toLowerCase();
-          if (APP_ROUTES.has(`/${lowerParam}`)) {
+          if (lowerParam === "articles") {
+            window.history.replaceState({}, "", "/posts");
+          } else if (APP_ROUTES.has(`/${lowerParam}`)) {
             window.history.replaceState({}, "", `/${lowerParam}`);
           } else if (rawStartParam.startsWith("article_")) {
             const sl = rawStartParam.slice("article_".length).trim();
@@ -2568,13 +2579,13 @@
       const prev = state.navStack.pop();
       if (!prev || prev === getNormalizedPath()) continue;
       // For unregistered guests, skip private app routes and go to public /articles or another article
-      if (!state.isVerified && APP_ROUTES.has(prev) && prev !== "/articles") {
+      if (!state.isVerified && APP_ROUTES.has(prev) && prev !== "/posts") {
         continue;
       }
       navigateTo(prev, false, { isBack: true });
       return;
     }
-    navigateTo("/articles", false, { isBack: true });
+    navigateTo("/posts", false, { isBack: true });
   });
 
   // Guest Gate Listeners
@@ -3578,7 +3589,7 @@
   });
 
   // Article Editor Listeners
-  document.getElementById("newArticleBtn").addEventListener("click", () => navigateTo("/articles/new"));
+  document.getElementById("newArticleBtn").addEventListener("click", () => navigateTo("/posts/new"));
   document.getElementById("backFromEditorBtn").addEventListener("click", () => navigateTo("/articles"));
   let editingCodeEmbedEl = null;
 
@@ -4104,7 +4115,7 @@
       if (!res.ok) throw new Error(res.error || "Помилка видалення");
       state.articles = res.articles || [];
       showToast("Статтю видалено");
-      navigateTo("/articles");
+      navigateTo("/posts");
     } catch (err) {
       showToast(err.message);
     }
