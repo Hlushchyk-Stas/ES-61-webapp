@@ -2176,3 +2176,65 @@ html[data-theme="dark"] .role-badge-yellow {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==================== WIKIPEDIA-STYLE COLLAPSIBLE SECTIONS IN ARTICLES ==================== */
+.tg-article-spoiler {
+  margin: 12px 0;
+  border: 1px solid var(--tg-border);
+  border-radius: 12px;
+  background: var(--tg-surface);
+  overflow: hidden;
+}
+
+.tg-article-spoiler > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 11px 14px;
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--tg-text);
+  background: var(--tg-surface-alt);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  user-select: none;
+  transition: background-color 0.16s ease;
+}
+
+.tg-article-spoiler > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tg-article-spoiler > summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--tg-text-secondary);
+  border-bottom: 2px solid var(--tg-text-secondary);
+  transform: rotate(45deg);
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
+.tg-article-spoiler[open] > summary {
+  border-bottom: 1px solid var(--tg-border);
+}
+
+.tg-article-spoiler[open] > summary::after {
+  transform: rotate(-135deg);
+}
+
+.tg-spoiler-body {
+  padding: 12px 14px;
+  animation: uiFadeIn 0.2s ease both;
+}
+
+.tg-spoiler-body > :first-child {
+  margin-top: 0;
+}
+
+.tg-spoiler-body > :last-child {
+  margin-bottom: 0;
+}

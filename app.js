@@ -558,6 +558,13 @@
     // Security: strip any raw <script> tags from article body HTML
     bodyEl.querySelectorAll("script").forEach((s) => s.remove());
 
+    // Apply default collapsed state for Wikipedia-style collapsible sections
+    bodyEl.querySelectorAll("details.tg-article-spoiler").forEach((det) => {
+      if (det.getAttribute("data-default-closed") === "1") {
+        det.removeAttribute("open");
+      }
+    });
+
     // Hydrate sandboxed live code embeds ONLY inside standalone article reader
     bodyEl.querySelectorAll(".article-code-embed[data-embed-code]").forEach((box) => {
       const b64 = box.getAttribute("data-embed-code") || "";
@@ -3351,6 +3358,56 @@
     closeArtTableModal();
   });
 
+  const closeArtSpoilerModal = () => {
+    const m = document.getElementById("articleSpoilerModal");
+    if (m) m.hidden = true;
+  };
+  document.getElementById("closeArticleSpoilerModalBtn")?.addEventListener("click", closeArtSpoilerModal);
+  document.getElementById("cancelArticleSpoilerBtn")?.addEventListener("click", closeArtSpoilerModal);
+  document.getElementById("articleSpoilerModal")?.addEventListener("click", (e) => {
+    if (e.target.id === "articleSpoilerModal") closeArtSpoilerModal();
+  });
+  document.getElementById("articleSpoilerForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const title = document.getElementById("artSpoilerTitleInput").value.trim() || "Розділ";
+    const defaultClosed = document.getElementById("artSpoilerCollapsedCheck").checked;
+
+    const det = document.createElement("details");
+    det.className = "tg-article-spoiler";
+    det.setAttribute("open", "");
+    det.setAttribute("data-default-closed", defaultClosed ? "1" : "0");
+
+    const sum = document.createElement("summary");
+    sum.textContent = title;
+    const body = document.createElement("div");
+    body.className = "tg-spoiler-body";
+    body.innerHTML = "<p>Введіть текст розділу...</p>";
+    det.appendChild(sum);
+    det.appendChild(body);
+
+    const editor = document.getElementById("editArticleBody");
+    editor.focus();
+    if (savedEditorRange) {
+      try {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(savedEditorRange);
+      } catch {}
+    }
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      const pAfter = document.createElement("p");
+      pAfter.innerHTML = "<br>";
+      range.insertNode(pAfter);
+      range.insertNode(det);
+    } else {
+      editor.appendChild(det);
+    }
+    closeArtSpoilerModal();
+  });
+
   const closeArtCodeModal = () => {
     document.getElementById("articleCodeModal").hidden = true;
     editingCodeEmbedEl = null;
@@ -3566,6 +3623,14 @@
       if (act === "table") {
         saveEditorSelection();
         document.getElementById("articleTableModal").hidden = false;
+        return;
+      }
+      if (act === "collapsible") {
+        saveEditorSelection();
+        document.getElementById("artSpoilerTitleInput").value = "";
+        document.getElementById("artSpoilerCollapsedCheck").checked = true;
+        document.getElementById("articleSpoilerModal").hidden = false;
+        setTimeout(() => document.getElementById("artSpoilerTitleInput")?.focus(), 50);
         return;
       }
       if (act === "embedCode") {
