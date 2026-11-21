@@ -120,9 +120,52 @@
     return escapeHtml(str).replace(/'/g, "&#39;");
   }
 
+  function isTelegramMiniApp() {
+    return Boolean(tg && tg.initData && String(tg.initData).trim().length > 0);
+  }
+
+  function extractInternalRoute(raw) {
+    const s = String(raw || "").trim();
+    if (!s) return "";
+    if (s.startsWith("/") && !s.startsWith("//") && !s.startsWith("/api/")) {
+      return s.length > 1 ? s.replace(/\/+$/, "") : "/";
+    }
+    if (/^https?:\/\/\/[^/]/i.test(s)) {
+      const pathPart = s.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+      if (pathPart && !pathPart.startsWith("/api/")) return pathPart;
+    }
+    return "";
+  }
+
+  function resolveSmartRouteUrl(route) {
+    const clean = extractInternalRoute(route) || "/";
+    if (isTelegramMiniApp()) {
+      const bot = state.botUsername || "ES61bot";
+      const seg = clean.replace(/^\/+/, "").trim() || "home";
+      return `https://t.me/${bot}?startapp=${encodeURIComponent(seg)}`;
+    }
+    return `${window.location.origin}${clean}`;
+  }
+
+  function hydrateSmartLinks(container) {
+    if (!container) return;
+    container.querySelectorAll("a[href], a[data-internal-route]").forEach((a) => {
+      const rawHref = a.getAttribute("data-internal-route") || a.getAttribute("href") || "";
+      const route = extractInternalRoute(rawHref);
+      if (!route) return;
+      a.setAttribute("data-internal-route", route);
+      a.setAttribute("href", resolveSmartRouteUrl(route));
+      a.removeAttribute("target");
+      a.removeAttribute("rel");
+    });
+  }
+
   function normalizeUserUrl(raw) {
     const s = String(raw || "").trim();
     if (!s) return "";
+    if (s.startsWith("/") && !s.startsWith("//")) {
+      return s.length > 1 ? s.replace(/\/+$/, "") : "/";
+    }
     if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s)) return s;
     if (s.startsWith("//")) return `https:${s}`;
     return `https://${s}`;
@@ -558,6 +601,9 @@
     // Security: strip any raw <script> tags from article body HTML
     bodyEl.querySelectorAll("script").forEach((s) => s.remove());
 
+    // Hydrate smart internal route links (e.g. /tasks, /slug -> Mini App or Browser URL)
+    hydrateSmartLinks(bodyEl);
+
     // Hydrate Wikipedia-style collapsible blocks (div-based + legacy details)
     bodyEl.querySelectorAll("details.tg-article-spoiler").forEach((det) => {
       if (det.getAttribute("data-default-closed") === "1") det.removeAttribute("open");
@@ -888,22 +934,25 @@
     return `${y}-${mo}-${da}`;
   }
 
+  function buildLessonLinkAnchor(rawUrl, label) {
+    const internalRoute = extractInternalRoute(rawUrl);
+    if (internalRoute) {
+      const resolved = resolveSmartRouteUrl(internalRoute);
+      return `<a href="${escapeAttr(resolved)}" data-internal-route="${escapeAttr(internalRoute)}" class="lesson-join-btn">${ICONS.link}<span>${escapeHtml(label)}</span></a>`;
+    }
+    return `<a href="${escapeAttr(rawUrl)}" target="_blank" rel="noopener noreferrer" class="lesson-join-btn">${ICONS.link}<span>${escapeHtml(label)}</span></a>`;
+  }
+
   function renderLessonLinksHtml(grp) {
     if (grp.subgroups && grp.subgroups.length > 0) {
       return grp.subgroups
         .filter((sg) => sg && sg.link)
-        .map(
-          (sg) =>
-            `<a href="${escapeAttr(sg.link)}" target="_blank" rel="noopener noreferrer" class="lesson-join-btn">${ICONS.link}<span>${escapeHtml(sg.name || "Підгрупа")}</span></a>`,
-        )
+        .map((sg) => buildLessonLinkAnchor(sg.link, sg.name || "Підгрупа"))
         .join("");
     }
     const links = Array.from(new Set((grp.items || []).map((i) => i.link).filter(Boolean)));
     return links
-      .map(
-        (lnk, idx) =>
-          `<a href="${escapeAttr(lnk)}" target="_blank" rel="noopener noreferrer" class="lesson-join-btn">${ICONS.link}<span>${links.length > 1 ? `Пара (${idx + 1})` : "Перейти на пару"}</span></a>`,
-      )
+      .map((lnk, idx) => buildLessonLinkAnchor(lnk, links.length > 1 ? `Пара (${idx + 1})` : "Перейти на пару"))
       .join("");
   }
 
@@ -1485,11 +1534,10 @@
     container.querySelectorAll("[data-copy-slug]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const slugVal = btn.getAttribute("data-copy-slug") || "";
-        const bot = state.botUsername || "ES61bot";
-        const url = `https://t.me/${bot}?startapp=${encodeURIComponent(slugVal)}`;
+        const url = resolveSmartRouteUrl(`/${slugVal}`);
         try {
           await navigator.clipboard.writeText(url);
-          showToast("Telegram-посилання скопійовано!");
+          showToast(isTelegramMiniApp() ? "Telegram-посилання скопійовано!" : "Посилання скопійовано!");
         } catch {
           showToast(url);
         }
@@ -2416,6 +2464,18 @@
       haptic("light");
       navigateTo(el.getAttribute("data-route"));
     });
+  });
+
+  document.addEventListener("click", (e) => {
+    const a = e.target && e.target.closest ? e.target.closest("a[data-internal-route]") : null;
+    if (!a) return;
+    if (a.closest("#editArticleBody")) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+    const route = extractInternalRoute(a.getAttribute("data-internal-route") || "");
+    if (!route) return;
+    e.preventDefault();
+    haptic("light");
+    navigateTo(route);
   });
 
   document.getElementById("articleHomeBtn").addEventListener("click", () => {
@@ -3585,7 +3645,7 @@
     inp.placeholder =
       mode === "photoUrl"
         ? "Вставте посилання на фото і натисніть Enter"
-        : "Вставте посилання і натисніть Enter";
+        : "Посилання або гілка (наприклад /tasks) — Enter";
     bar.hidden = false;
     setTimeout(() => inp.focus(), 10);
   }
@@ -3610,9 +3670,15 @@
     } else if (mode === "link") {
       ed.focus();
       const a = document.createElement("a");
-      a.href = url;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
+      const internalRoute = extractInternalRoute(url);
+      if (internalRoute) {
+        a.setAttribute("href", internalRoute);
+        a.setAttribute("data-internal-route", internalRoute);
+      } else {
+        a.setAttribute("href", url);
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+      }
 
       if (savedEditorRange && ed.contains(savedEditorRange.commonAncestorContainer)) {
         const range = savedEditorRange.cloneRange();
@@ -3735,6 +3801,15 @@
     const clone = ed.cloneNode(true);
     clone.querySelectorAll(".tg-spoiler-del-btn").forEach((b) => b.remove());
     clone.querySelectorAll(".tg-spoiler-block").forEach((b) => b.classList.remove("is-collapsed"));
+    clone.querySelectorAll("a[href], a[data-internal-route]").forEach((a) => {
+      const route = extractInternalRoute(a.getAttribute("data-internal-route") || a.getAttribute("href") || "");
+      if (route) {
+        a.setAttribute("href", route);
+        a.setAttribute("data-internal-route", route);
+        a.removeAttribute("target");
+        a.removeAttribute("rel");
+      }
+    });
     clone.querySelectorAll("img").forEach((img) => {
       img.classList.remove("selected-photo");
       const orig = img.getAttribute("data-orig-src");
