@@ -1384,3 +1384,194 @@ html[data-theme="dark"] .role-badge-yellow {
   background: rgba(250, 204, 21, 0.16) !important;
   color: #facc15 !important;
 }
+
+/* ==================== UNIFIED DIRECTORY CARDS ==================== */
+.dir-unified-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dir-subject-card {
+  background: var(--tg-surface-alt);
+  border: 1px solid var(--tg-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dir-subject-head-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+  text-align: left;
+  color: var(--tg-text);
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dir-subject-head-btn:active {
+  opacity: 0.72;
+}
+
+.dir-lecturers-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 6px;
+  border-top: 1px solid var(--tg-border);
+}
+
+.dir-lecturer-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: var(--tg-surface);
+  border: 1px solid var(--tg-border);
+  border-radius: 9px;
+  padding: 7px 10px;
+  text-align: left;
+  color: var(--tg-text);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.dir-lecturer-btn:active {
+  background: var(--tg-accent-soft);
+}
+
+.dir-lecturer-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.dir-lecturer-name {
+  font-weight: 500;
+  color: var(--tg-text);
+}
+
+.dir-lecturer-badges {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* ==================== TASK SUBMISSIONS MODAL ==================== */
+.task-card {
+  cursor: pointer;
+}
+
+.task-subs-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.task-subs-section {
+  background: var(--tg-surface-alt);
+  border: 1px solid var(--tg-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-subs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.task-subs-head.done {
+  color: var(--tg-green);
+}
+
+.task-subs-head.missing {
+  color: var(--tg-red);
+}
+
+.task-subs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13.5px;
+  color: var(--tg-text);
+}
+
+.task-subs-item {
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: var(--tg-surface);
+  border: 1px solid var(--tg-border);
+}
+
+/* ==================== ARTICLE TABLES & SANDBOXED CODE EMBEDS ==================== */
+.tg-article-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+.tg-article-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: var(--tg-surface);
+  border: 1px solid var(--tg-border);
+  border-radius: 8px;
+}
+
+.tg-article-table th,
+.tg-article-table td {
+  border: 1px solid var(--tg-border);
+  padding: 8px 10px;
+  text-align: left;
+  min-width: 60px;
+  vertical-align: top;
+}
+
+.tg-article-table th {
+  background: var(--tg-surface-alt);
+  font-weight: 600;
+}
+
+.article-code-embed {
+  margin: 12px 0;
+  border: 1px solid var(--tg-border);
+  border-radius: 12px;
+  background: var(--tg-surface-alt);
+  overflow: hidden;
+}
+
+.article-code-editor-stub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  color: var(--tg-text);
+}
+
+.article-code-iframe {
+  width: 100%;
+  border: none;
+  display: block;
+  background: #ffffff;
+}

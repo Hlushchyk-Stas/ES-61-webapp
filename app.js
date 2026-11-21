@@ -553,6 +553,30 @@
     metaEl.textContent = `${art.author || "Адміністратор"}${dateStr ? ` · ${dateStr}` : ""}`;
     bodyEl.innerHTML = art.contentHtml || "<i>Текст порожній</i>";
 
+    // Security: strip any raw <script> tags from article body HTML
+    bodyEl.querySelectorAll("script").forEach((s) => s.remove());
+
+    // Hydrate sandboxed live code embeds ONLY inside standalone article reader
+    bodyEl.querySelectorAll(".article-code-embed[data-embed-code]").forEach((box) => {
+      const b64 = box.getAttribute("data-embed-code") || "";
+      const h = Math.max(120, Math.min(1200, Number(box.getAttribute("data-embed-height")) || 320));
+      let codeStr = "";
+      try {
+        codeStr = decodeURIComponent(escape(atob(b64)));
+      } catch {
+        try { codeStr = atob(b64); } catch {}
+      }
+      box.innerHTML = "";
+      const iframe = document.createElement("iframe");
+      iframe.className = "article-code-iframe";
+      iframe.style.height = `${h}px`;
+      // Strict sandbox: allow-scripts ONLY (opaque null origin -> NO cookies, NO localStorage, NO parent DOM, NO API auth)
+      iframe.setAttribute("sandbox", "allow-scripts");
+      iframe.setAttribute("referrerpolicy", "no-referrer");
+      iframe.srcdoc = codeStr;
+      box.appendChild(iframe);
+    });
+
     // Fix relative /api/media/ image URLs if using fallback backend host
     bodyEl.querySelectorAll("img").forEach((img) => {
       const src = img.getAttribute("src") || "";
@@ -627,7 +651,7 @@
       else if (tab === "schedule") renderSchedule();
       else if (tab === "tasks") renderTasks();
       else if (tab === "articles") renderArticles();
-      else if (tab === "users") renderUsers();
+      else if (tab === "users") { if (!state.isAdmin) { navigateTo("/home", true); return; } renderUsers(); }
       else if (tab === "profile") renderProfile();
       return;
     }
@@ -910,7 +934,7 @@
     );
     if (oneTimeList.length > 0) {
       oneTimeWrap.innerHTML = `
-        <div class="tg-section-header" style="margin-bottom:6px;"><span>Одноразові події та спец. дати</span></div>
+        <div class="tg-section-header" style="margin-bottom:6px;"><span>Одноразові події</span></div>
         <div class="lessons-list">
           ${oneTimeList
             .map(
@@ -1010,12 +1034,7 @@
           .join("");
 
         const linksHtml = renderLessonLinksHtml(grp);
-        const datesHtml =
-          grp.dates && grp.dates.length > 0
-            ? `<div class="lesson-special-date-box">
-                <span>${ICONS.calendar} <b>Спец. дати:</b> ${escapeHtml(grp.dates.map(formatUkDate).join(", "))}</span>
-              </div>`
-            : "";
+        const datesHtml = "";
 
         card.innerHTML = `
           <div class="lesson-time-col">
@@ -1152,6 +1171,58 @@
     });
   }
 
+  function openTaskSubmissionsModal(task) {
+    if (!task) return;
+    const modal = document.getElementById("taskSubmissionsModal");
+    const titleEl = document.getElementById("taskSubsTitle");
+    const subjEl = document.getElementById("taskSubsSubjectLabel");
+    const bodyEl = document.getElementById("taskSubsBody");
+    if (!modal || !bodyEl) return;
+
+    titleEl.textContent = task.title || "Завдання";
+    if (task.subject) {
+      subjEl.textContent = task.subject;
+      subjEl.hidden = false;
+    } else {
+      subjEl.hidden = true;
+    }
+
+    const submitted = Array.isArray(task.submittedUsers) ? task.submittedUsers : [];
+    const notSubmitted = Array.isArray(task.notSubmittedUsers) ? task.notSubmittedUsers : [];
+
+    const doneListHtml = submitted.length
+      ? submitted
+          .map((u, i) => `<div class="task-subs-item">${i + 1}. ${escapeHtml(u.fullName)}</div>`)
+          .join("")
+      : '<div class="meta-sub">Поки ніхто не здав</div>';
+
+    const missListHtml = notSubmitted.length
+      ? notSubmitted
+          .map((u, i) => `<div class="task-subs-item">${i + 1}. ${escapeHtml(u.fullName)}</div>`)
+          .join("")
+      : '<div class="meta-sub">Усі здали!</div>';
+
+    bodyEl.innerHTML = `
+      <div class="task-subs-section">
+        <div class="task-subs-head done"><span>Здало: ${submitted.length}</span></div>
+        <div class="task-subs-list">${doneListHtml}</div>
+      </div>
+      <div class="task-subs-section">
+        <div class="task-subs-head missing"><span>Не здало: ${notSubmitted.length}</span></div>
+        <div class="task-subs-list">${missListHtml}</div>
+      </div>
+    `;
+    modal.hidden = false;
+  }
+
+  document.getElementById("closeTaskSubsModalBtn")?.addEventListener("click", () => {
+    const m = document.getElementById("taskSubmissionsModal");
+    if (m) m.hidden = true;
+  });
+  document.getElementById("taskSubmissionsModal")?.addEventListener("click", (e) => {
+    if (e.target.id === "taskSubmissionsModal") e.target.hidden = true;
+  });
+
   function renderTasks() {
     const allTasks = state.tasks || [];
     renderSubjectFilterStrip(
@@ -1233,6 +1304,7 @@
           }
         </div>
       `;
+      let didLongPress = false;
       if (state.isAdmin) {
         let pressTimer = null;
         let startX = 0;
@@ -1245,11 +1317,13 @@
         };
         card.addEventListener("pointerdown", (ev) => {
           if (ev.target.closest("button, a, input, select")) return;
+          didLongPress = false;
           startX = ev.clientX;
           startY = ev.clientY;
           cancelPress();
           pressTimer = setTimeout(() => {
             pressTimer = null;
+            didLongPress = true;
             haptic("medium");
             state.selectedTaskId = state.selectedTaskId === task.id ? null : task.id;
             renderTasks();
@@ -1265,6 +1339,15 @@
         card.addEventListener("pointercancel", cancelPress);
         card.addEventListener("pointerleave", cancelPress);
       }
+      card.addEventListener("click", (ev) => {
+        if (didLongPress) {
+          didLongPress = false;
+          return;
+        }
+        if (ev.target.closest("button, a, input, select")) return;
+        haptic("light");
+        openTaskSubmissionsModal(task);
+      });
       container.appendChild(card);
     }
 
@@ -1416,6 +1499,9 @@
 
   // ==================== USERS DIRECTORY & MODERATION (/users) ====================
   function updatePendingIndicator() {
+    document.querySelectorAll('[data-route="/users"]').forEach((el) => {
+      el.hidden = !state.isAdmin;
+    });
     const count = (state.pendingUsers || []).length;
     const dot = document.getElementById("pendingUsersDot");
     if (dot) dot.hidden = !(state.isAdmin && count > 0);
@@ -2010,33 +2096,134 @@
   }
 
   function renderDirectoryList() {
-    document.querySelectorAll("[data-dir-type]").forEach((btn) => {
-      btn.classList.toggle("active", btn.getAttribute("data-dir-type") === activeDirType);
-    });
     document.getElementById("directoryAdminCreate").hidden = !state.isAdmin;
 
     const listEl = document.getElementById("directoryList");
-    const items = collectEntitiesFromScheduleAndProfiles(activeDirType);
     listEl.innerHTML = "";
 
-    if (!items.length) {
+    // Build subject -> Map(lecturerName -> Set(lessonType)) from schedule
+    const subjectMap = new Map();
+    const attachedLecturers = new Set();
+
+    const ensureSubject = (subjName) => {
+      const clean = String(subjName || "").trim();
+      if (!clean) return null;
+      if (!subjectMap.has(clean)) subjectMap.set(clean, new Map());
+      return subjectMap.get(clean);
+    };
+
+    Object.keys(state.profiles?.subjects || {}).forEach((s) => ensureSubject(s));
+
+    const allLessons = [];
+    const weeks = state.schedule?.weeks || {};
+    for (const wk of Object.values(weeks)) {
+      for (const dayList of Object.values(wk || {})) {
+        for (const l of dayList || []) allLessons.push(l);
+      }
+    }
+    for (const ev of state.schedule?.oneTimeEvents || []) allLessons.push(ev);
+
+    for (const l of allLessons) {
+      const lectMap = ensureSubject(l?.name);
+      if (!lectMap) continue;
+      const rawLect = String(l?.lecturer || "").trim();
+      if (!rawLect) continue;
+      const lectNames = rawLect.split(",").map((x) => x.trim()).filter(Boolean);
+      const lType = String(l?.type || "Пара").trim();
+      for (const ln of lectNames) {
+        attachedLecturers.add(ln);
+        if (!lectMap.has(ln)) lectMap.set(ln, new Set());
+        lectMap.get(ln).add(lType);
+      }
+    }
+
+    const sortedSubjects = Array.from(subjectMap.keys()).sort((a, b) => a.localeCompare(b, "uk"));
+    const orphanLecturers = Object.keys(state.profiles?.lecturers || {})
+      .map((x) => x.trim())
+      .filter((x) => x && !attachedLecturers.has(x))
+      .sort((a, b) => a.localeCompare(b, "uk"));
+
+    if (!sortedSubjects.length && !orphanLecturers.length) {
       listEl.innerHTML = '<div class="tg-empty-state">Список порожній</div>';
       return;
     }
 
-    const bucket = activeDirType === "lecturer" ? "lecturers" : "subjects";
-    for (const name of items) {
-      const prof = state.profiles?.[bucket]?.[name];
-      const count = prof?.categories?.length || 0;
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "directory-item-btn";
-      btn.innerHTML = `<span>${escapeHtml(name)}</span>${count > 0 ? `<span class="tg-pill">${count}</span>` : ""}`;
-      btn.addEventListener("click", () => {
+    for (const subjName of sortedSubjects) {
+      const lectMap = subjectMap.get(subjName);
+      const subjProf = state.profiles?.subjects?.[subjName];
+      const subjCatsCount = subjProf?.categories?.length || 0;
+
+      const card = document.createElement("div");
+      card.className = "dir-subject-card";
+
+      const headBtn = document.createElement("button");
+      headBtn.type = "button";
+      headBtn.className = "dir-subject-head-btn";
+      headBtn.innerHTML = `<span>${escapeHtml(subjName)}</span>${subjCatsCount > 0 ? `<span class="tg-pill">${subjCatsCount}</span>` : ""}`;
+      headBtn.addEventListener("click", () => {
+        haptic("light");
         document.getElementById("directoryModal").hidden = true;
-        openEntityProfile(activeDirType, name);
+        openEntityProfile("subject", subjName);
       });
-      listEl.appendChild(btn);
+      card.appendChild(headBtn);
+
+      const lecturers = Array.from(lectMap.entries()).sort(([a], [b]) => a.localeCompare(b, "uk"));
+      if (lecturers.length > 0) {
+        const wrap = document.createElement("div");
+        wrap.className = "dir-lecturers-wrap";
+
+        for (const [lectName, typesSet] of lecturers) {
+          const lectProf = state.profiles?.lecturers?.[lectName];
+          const lectCatsCount = lectProf?.categories?.length || 0;
+          const badgesHtml = Array.from(typesSet)
+            .map((tp) => `<span class="lesson-badge ${getLessonTypeClass(tp)}">${escapeHtml(tp)}</span>`)
+            .join("");
+
+          const lBtn = document.createElement("button");
+          lBtn.type = "button";
+          lBtn.className = "dir-lecturer-btn";
+          lBtn.innerHTML = `
+            <div class="dir-lecturer-left">
+              <span class="dir-lecturer-badges">${badgesHtml}</span>
+              <span class="dir-lecturer-name">${escapeHtml(lectName)}</span>
+            </div>
+            ${lectCatsCount > 0 ? `<span class="tg-pill">${lectCatsCount}</span>` : ""}
+          `;
+          lBtn.addEventListener("click", () => {
+            haptic("light");
+            document.getElementById("directoryModal").hidden = true;
+            openEntityProfile("lecturer", lectName);
+          });
+          wrap.appendChild(lBtn);
+        }
+        card.appendChild(wrap);
+      }
+
+      listEl.appendChild(card);
+    }
+
+    if (orphanLecturers.length > 0) {
+      const card = document.createElement("div");
+      card.className = "dir-subject-card";
+      card.innerHTML = '<div class="meta-label">Інші викладачі</div>';
+      const wrap = document.createElement("div");
+      wrap.className = "dir-lecturers-wrap";
+      for (const lectName of orphanLecturers) {
+        const lectProf = state.profiles?.lecturers?.[lectName];
+        const lectCatsCount = lectProf?.categories?.length || 0;
+        const lBtn = document.createElement("button");
+        lBtn.type = "button";
+        lBtn.className = "dir-lecturer-btn";
+        lBtn.innerHTML = `<span class="dir-lecturer-name">${escapeHtml(lectName)}</span>${lectCatsCount > 0 ? `<span class="tg-pill">${lectCatsCount}</span>` : ""}`;
+        lBtn.addEventListener("click", () => {
+          haptic("light");
+          document.getElementById("directoryModal").hidden = true;
+          openEntityProfile("lecturer", lectName);
+        });
+        wrap.appendChild(lBtn);
+      }
+      card.appendChild(wrap);
+      listEl.appendChild(card);
     }
   }
 
@@ -2805,6 +2992,151 @@
   // Article Editor Listeners
   document.getElementById("newArticleBtn").addEventListener("click", () => navigateTo("/articles/new"));
   document.getElementById("backFromEditorBtn").addEventListener("click", () => navigateTo("/articles"));
+  let editingCodeEmbedEl = null;
+
+  function encodeUtf8Base64(str) {
+    return btoa(unescape(encodeURIComponent(String(str || ""))));
+  }
+
+  function decodeUtf8Base64(b64) {
+    try { return decodeURIComponent(escape(atob(b64 || ""))); } catch { return ""; }
+  }
+
+  function renderCodeEmbedStub(box) {
+    const h = Number(box.getAttribute("data-embed-height")) || 320;
+    box.setAttribute("contenteditable", "false");
+    box.innerHTML = `
+      <div class="article-code-editor-stub">
+        <span><b>&lt;/&gt; Інтерактивний блок коду</b> · ${h}px</span>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-edit-code-embed="1">Редагувати</button>
+          <button type="button" class="tg-btn tg-btn-danger tg-btn-sm" data-del-code-embed="1">✕</button>
+        </div>
+      </div>
+    `;
+  }
+
+  document.getElementById("editArticleBody")?.addEventListener("click", (e) => {
+    const editBtn = e.target.closest("[data-edit-code-embed]");
+    if (editBtn) {
+      const box = editBtn.closest(".article-code-embed");
+      if (!box) return;
+      editingCodeEmbedEl = box;
+      document.getElementById("artCodeHeightInput").value = box.getAttribute("data-embed-height") || "320";
+      document.getElementById("artCodeSourceInput").value = decodeUtf8Base64(box.getAttribute("data-embed-code") || "");
+      document.getElementById("articleCodeModal").hidden = false;
+      return;
+    }
+    const delBtn = e.target.closest("[data-del-code-embed]");
+    if (delBtn) {
+      const box = delBtn.closest(".article-code-embed");
+      if (box) box.remove();
+    }
+  });
+
+  const closeArtTableModal = () => { document.getElementById("articleTableModal").hidden = true; };
+  document.getElementById("closeArticleTableModalBtn")?.addEventListener("click", closeArtTableModal);
+  document.getElementById("cancelArticleTableBtn")?.addEventListener("click", closeArtTableModal);
+  document.getElementById("articleTableModal")?.addEventListener("click", (e) => {
+    if (e.target.id === "articleTableModal") closeArtTableModal();
+  });
+  document.getElementById("articleTableForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const rows = Math.max(1, Math.min(30, Number(document.getElementById("artTableRows").value) || 3));
+    const cols = Math.max(1, Math.min(10, Number(document.getElementById("artTableCols").value) || 3));
+    const hasHeader = document.getElementById("artTableHeader").checked;
+
+    const wrap = document.createElement("div");
+    wrap.className = "tg-article-table-wrap";
+    const tbl = document.createElement("table");
+    tbl.className = "tg-article-table";
+    for (let r = 0; r < rows; r++) {
+      const tr = document.createElement("tr");
+      for (let c = 0; c < cols; c++) {
+        const cell = document.createElement(hasHeader && r === 0 ? "th" : "td");
+        cell.innerHTML = hasHeader && r === 0 ? `Колонка ${c + 1}` : "<br>";
+        tr.appendChild(cell);
+      }
+      tbl.appendChild(tr);
+    }
+    wrap.appendChild(tbl);
+
+    const editor = document.getElementById("editArticleBody");
+    editor.focus();
+    if (savedEditorRange) {
+      try {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(savedEditorRange);
+      } catch {}
+    }
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      const pAfter = document.createElement("p");
+      pAfter.innerHTML = "<br>";
+      range.insertNode(pAfter);
+      range.insertNode(wrap);
+    } else {
+      editor.appendChild(wrap);
+    }
+    closeArtTableModal();
+  });
+
+  const closeArtCodeModal = () => {
+    document.getElementById("articleCodeModal").hidden = true;
+    editingCodeEmbedEl = null;
+  };
+  document.getElementById("closeArticleCodeModalBtn")?.addEventListener("click", closeArtCodeModal);
+  document.getElementById("cancelArticleCodeBtn")?.addEventListener("click", closeArtCodeModal);
+  document.getElementById("articleCodeModal")?.addEventListener("click", (e) => {
+    if (e.target.id === "articleCodeModal") closeArtCodeModal();
+  });
+  document.getElementById("articleCodeForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const code = document.getElementById("artCodeSourceInput").value;
+    const height = Math.max(120, Math.min(1200, Number(document.getElementById("artCodeHeightInput").value) || 320));
+    if (!code.trim()) return;
+    const b64 = encodeUtf8Base64(code);
+
+    if (editingCodeEmbedEl) {
+      editingCodeEmbedEl.setAttribute("data-embed-code", b64);
+      editingCodeEmbedEl.setAttribute("data-embed-height", String(height));
+      renderCodeEmbedStub(editingCodeEmbedEl);
+      closeArtCodeModal();
+      return;
+    }
+
+    const box = document.createElement("div");
+    box.className = "article-code-embed";
+    box.setAttribute("data-embed-code", b64);
+    box.setAttribute("data-embed-height", String(height));
+    renderCodeEmbedStub(box);
+
+    const editor = document.getElementById("editArticleBody");
+    editor.focus();
+    if (savedEditorRange) {
+      try {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(savedEditorRange);
+      } catch {}
+    }
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      const pAfter = document.createElement("p");
+      pAfter.innerHTML = "<br>";
+      range.insertNode(pAfter);
+      range.insertNode(box);
+    } else {
+      editor.appendChild(box);
+    }
+    closeArtCodeModal();
+  });
+
   document.getElementById("cancelArticleEditBtn").addEventListener("click", () => navigateTo("/articles"));
 
   document.querySelectorAll("#articleToolbar button[data-cmd]").forEach((btn) => {
@@ -2964,6 +3296,19 @@
     btn.addEventListener("click", () => {
       const act = btn.getAttribute("data-action");
       const ed = document.getElementById("editArticleBody");
+      if (act === "table") {
+        saveEditorSelection();
+        document.getElementById("articleTableModal").hidden = false;
+        return;
+      }
+      if (act === "embedCode") {
+        saveEditorSelection();
+        editingCodeEmbedEl = null;
+        document.getElementById("artCodeHeightInput").value = "320";
+        document.getElementById("artCodeSourceInput").value = "";
+        document.getElementById("articleCodeModal").hidden = false;
+        return;
+      }
       if (act === "link" || act === "photoUrl") {
         openTelegraphInlineBar(act);
         return;
@@ -3132,8 +3477,13 @@
       renderDirectoryList();
     });
   });
+  document.getElementById("directoryModal")?.addEventListener("click", (e) => {
+    if (e.target.id === "directoryModal") document.getElementById("directoryModal").hidden = true;
+  });
   document.getElementById("createEntityBtn").addEventListener("click", () => {
     const inp = document.getElementById("newEntityNameInput");
+    const typeSel = document.getElementById("newEntityTypeSelect");
+    const targetType = typeSel ? typeSel.value : "subject";
     const name = inp.value.trim();
     if (!name) {
       showToast("Введіть назву або ПІБ");
@@ -3141,7 +3491,7 @@
     }
     inp.value = "";
     document.getElementById("directoryModal").hidden = true;
-    openEntityProfile(activeDirType, name);
+    openEntityProfile(targetType, name);
   });
 
   bootstrap();
