@@ -509,7 +509,7 @@
     if (st === "blacklisted") {
       titleEl.textContent = "Доступ заблоковано";
       descEl.textContent = "Ваш обліковий запис внесено до чорного списку адміністрацією.";
-      statusNotice.textContent = "Ви можете переглядати лише окремі артиклі за прямим посиланням.";
+      statusNotice.textContent = "Ви можете переглядати лише публічні статті.";
       statusNotice.classList.add("error");
       statusNotice.hidden = false;
     } else if (st === "pending") {
@@ -537,7 +537,7 @@
         descEl.textContent = "Підпис Telegram належить іншому боту. Відкрийте додаток через основного бота @ES61bot (кнопка меню «ЕС-61 App»).";
       } else {
         titleEl.textContent = "Вхід через браузер заборонено";
-        descEl.textContent = "Авторизація та реєстрація доступні лише всередині Telegram-бота. У браузері можна переглядати тільки окремі артиклі за прямим посиланням.";
+        descEl.textContent = "Авторизація та реєстрація доступні лише всередині Telegram-бота. У браузері можна переглядати тільки публічні статті.";
       }
       if (browserBlock) {
         const tgLink = document.getElementById("guestOpenTgLink");
@@ -561,7 +561,7 @@
 
     // Back button is always visible (returns to previous article or public catalog)
     homeBtn.hidden = false;
-    const backTitle = state.navStack.length > 0 ? "Назад" : "До каталогу артиклів";
+    const backTitle = state.navStack.length > 0 ? "Назад" : "До каталогу статей";
     homeBtn.setAttribute("title", backTitle);
     homeBtn.setAttribute("aria-label", backTitle);
 
@@ -590,12 +590,12 @@
     if (privateBlocked) {
       readerPage.hidden = false;
       subjEl.hidden = true;
-      titleEl.textContent = "Закритий артикль";
+      titleEl.textContent = "Закрита стаття";
       metaEl.textContent = "Доступ лише для зареєстрованих учасників групи";
       const bot = state.botUsername || "ES61bot";
       bodyEl.innerHTML = `
         <div class="article-private-notice">
-          <p>Цей артикль закритий і доступний лише зареєстрованим учасникам групи ЕС-61 у Telegram Mini App.</p>
+          <p>Ця стаття закрита й доступна лише зареєстрованим учасникам групи ЕС-61 у Telegram Mini App.</p>
           <a class="tg-btn tg-btn-primary" href="https://t.me/${escapeAttr(bot)}?startapp=${escapeAttr(slug)}" target="_blank" rel="noopener noreferrer">Відкрити в Telegram (@${escapeHtml(bot)})</a>
         </div>
       `;
@@ -605,14 +605,14 @@
 
     if (!art) {
       if (state.isVerified) {
-        showToast("Артикль не знайдено");
+        showToast("Статтю не знайдено");
         navigateTo("/articles", true);
       } else {
         readerPage.hidden = false;
         subjEl.hidden = true;
-        titleEl.textContent = "Артикль не знайдено";
+        titleEl.textContent = "Статтю не знайдено";
         metaEl.textContent = "";
-        bodyEl.innerHTML = "<p>Перевірте правильність посилання або поверніться до каталогу публічних артиклів.</p>";
+        bodyEl.innerHTML = "<p>Перевірте правильність посилання або поверніться до каталогу публічних статей.</p>";
       }
       return;
     }
@@ -750,7 +750,7 @@
 
     // Public articles catalog is accessible to unregistered guests too (public articles only)
     if (pathname === "/articles") {
-      document.title = state.isVerified ? "ЕС-61 · Веб-додаток" : "Артиклі · ЕС-61";
+      document.title = state.isVerified ? "ЕС-61 · Веб-додаток" : "Статті · ЕС-61";
       showMainTab("articles");
       renderArticles();
       return;
@@ -1541,10 +1541,10 @@
     if (!list.length) {
       container.innerHTML = `<div class="tg-empty-state">${
         state.isAdmin
-          ? "Артиклів ще немає. Натисніть «Створити»!"
+          ? "Статей ще немає. Натисніть «Створити»!"
           : state.isVerified
-            ? "Артиклів поки немає."
-            : "Публічних артиклів поки немає."
+            ? "Статей поки немає."
+            : "Публічних статей поки немає."
       }</div>`;
       return;
     }
@@ -1564,7 +1564,7 @@
 
       const badges = [];
       if (art.isPinned) badges.push(`<span class="article-pin-badge">${pinSvg}<span>Закріплено</span></span>`);
-      if (isPrivate) badges.push(`<span class="article-private-badge">${lockSvg}<span>Закритий</span></span>`);
+      if (isPrivate) badges.push(`<span class="article-private-badge">${lockSvg}<span>Закрита</span></span>`);
       if (art.subject) badges.push(`<span class="subject-tag-pill">${escapeHtml(art.subject)}</span>`);
 
       card.innerHTML = `
@@ -1620,7 +1620,7 @@
           state.articles = res.articles || [];
           haptic("light");
           renderArticles();
-          showToast(res.article?.isPinned ? "Артикль закріплено зверху" : "Артикль відкріплено");
+          showToast(res.article?.isPinned ? "Статтю закріплено зверху" : "Статтю відкріплено");
         } catch (err) {
           btn.disabled = false;
           showToast(err.message);
@@ -1634,7 +1634,7 @@
     });
     container.querySelectorAll("[data-del-article]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        if (!confirm("Видалити цей артикль?")) return;
+        if (!confirm("Видалити цю статтю?")) return;
         const id = btn.getAttribute("data-del-article");
         try {
           const res = await apiFetch("/api/articles/delete", {
@@ -1644,7 +1644,7 @@
           if (!res.ok) throw new Error(res.error || "Помилка видалення");
           state.articles = res.articles || [];
           renderArticles();
-          showToast("Артикль видалено");
+          showToast("Статтю видалено");
         } catch (err) {
           showToast(err.message);
         }
@@ -1881,7 +1881,7 @@
       const blocks = [];
       if (linkedArticles.length > 0) {
         blocks.push(`
-          <div class="meta-label" style="margin:6px 0 4px;">Закріплені артиклі (${linkedArticles.length}):</div>
+          <div class="meta-label" style="margin:6px 0 4px;">Закріплені статті (${linkedArticles.length}):</div>
           <div class="directory-list">
             ${linkedArticles
               .map(
@@ -3240,11 +3240,11 @@
             <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>
           </div>
           <div class="ai-empty-title">Чим допомогти?</div>
-          <div class="ai-empty-sub">Я бачу контекст цього чату, базу артиклів, викладачів, розклад і зображення, які ви надсилаєте.</div>
+          <div class="ai-empty-sub">Я бачу контекст цього чату, базу статей, викладачів, розклад і зображення, які ви надсилаєте.</div>
           <div class="ai-suggestions">
             <button type="button" class="ai-suggestion-chip" data-ai-suggest="Які пари сьогодні за розкладом?">Які пари сьогодні?</button>
             <button type="button" class="ai-suggestion-chip" data-ai-suggest="Хто веде предмети на цьому тижні?">Викладачі й предмети</button>
-            <button type="button" class="ai-suggestion-chip" data-ai-suggest="Що є в останніх артиклях групи?">Останні артиклі</button>
+            <button type="button" class="ai-suggestion-chip" data-ai-suggest="Що є в останніх статтях групи?">Останні статті</button>
           </div>
         </div>
       `;
@@ -4036,7 +4036,7 @@
     const cb = document.getElementById("editArticlePublic");
     const lbl = document.getElementById("editArticlePublicLabel");
     if (!cb || !lbl) return;
-    lbl.textContent = cb.checked ? "Публічний (для всіх)" : "Закритий (лише зареєстрованим)";
+    lbl.textContent = cb.checked ? "Публічна (для всіх)" : "Закрита (лише зареєстрованим)";
   }
 
   document.getElementById("editArticlePublic")?.addEventListener("change", updateArticlePublicToggleLabel);
@@ -4073,7 +4073,7 @@
     const contentHtml = clone.innerHTML.trim();
 
     if (!title) {
-      showToast("Вкажіть заголовок артикля");
+      showToast("Вкажіть заголовок статті");
       return;
     }
     const btn = document.getElementById("saveArticleBtn");
@@ -4085,7 +4085,7 @@
       });
       if (!res.ok) throw new Error(res.error || "Помилка збереження");
       state.articles = res.articles || [];
-      showToast("Артикль опубліковано!");
+      showToast("Статтю опубліковано!");
       navigateTo(`/${encodeURIComponent(res.article.slug || res.article.id)}`);
     } catch (err) {
       showToast(err.message);
@@ -4095,7 +4095,7 @@
   });
 
   document.getElementById("deleteArticleEditorBtn").addEventListener("click", async () => {
-    if (!state.activeArticleId || !confirm("Видалити цей артикль?")) return;
+    if (!state.activeArticleId || !confirm("Видалити цю статтю?")) return;
     try {
       const res = await apiFetch("/api/articles/delete", {
         method: "POST",
@@ -4103,7 +4103,7 @@
       });
       if (!res.ok) throw new Error(res.error || "Помилка видалення");
       state.articles = res.articles || [];
-      showToast("Артикль видалено");
+      showToast("Статтю видалено");
       navigateTo("/articles");
     } catch (err) {
       showToast(err.message);
