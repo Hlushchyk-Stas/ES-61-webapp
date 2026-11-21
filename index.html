@@ -25,7 +25,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=62" />
+  <link rel="stylesheet" href="/styles.css?v=63" />
 </head>
 <body>
   <!-- FULLSCREEN CONNECTION / LOADING OVERLAY -->
@@ -380,7 +380,7 @@
 
   <!-- TELEGRAPH-STYLE STANDALONE ARTICLE READER (/:slug) -->
   <section id="articleReaderPage" class="telegraph-reader-page" hidden>
-    <button type="button" class="telegraph-home-fab" id="articleHomeBtn" hidden aria-label="Назад до артиклів" title="Назад до артиклів">
+    <button type="button" class="telegraph-home-fab" id="articleHomeBtn" aria-label="Назад" title="Назад">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
     </button>
     <article class="telegraph-reader-container">
@@ -408,6 +408,16 @@
         <div class="editor-subject-row">
           <label class="tg-field-label" for="editArticleSubject">Предмет</label>
           <select id="editArticleSubject" class="tg-input-box"></select>
+        </div>
+        <div class="editor-meta-toggles">
+          <label class="editor-toggle-pill" for="editArticlePinned">
+            <input type="checkbox" id="editArticlePinned" />
+            <span>Закріпити зверху</span>
+          </label>
+          <label class="editor-toggle-pill" for="editArticlePublic">
+            <input type="checkbox" id="editArticlePublic" checked />
+            <span id="editArticlePublicLabel">Публічний (для всіх)</span>
+          </label>
         </div>
 
         <!-- 12 buttons = exact 6x2 grid (NO Code tool, Telegraph URL photo input) -->
@@ -978,7 +988,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=62"></script>
+  <script src="/app.js?v=63"></script>
 
 </body>
 </html>

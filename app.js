@@ -86,6 +86,7 @@
     activeEntity: null,
     activeTaskSubjectId: null,
     bootstrapped: false,
+    navStack: [],
   };
 
   let resolvedApiBase = "";
@@ -449,9 +450,14 @@
     return p;
   }
 
-  function navigateTo(path, replace = false) {
+  function navigateTo(path, replace = false, opts = {}) {
     const target = path.startsWith("/") ? path : `/${path}`;
-    if (getNormalizedPath() !== target) {
+    const prev = getNormalizedPath();
+    if (prev !== target) {
+      if (!replace && !opts.isBack && prev) {
+        state.navStack.push(prev);
+        if (state.navStack.length > 40) state.navStack.shift();
+      }
       if (replace) history.replaceState({}, "", target);
       else history.pushState({}, "", target);
     }
@@ -469,7 +475,12 @@
 
   function showMainTab(tabName) {
     hideAllTopLevelViews();
-    document.getElementById("appShell").hidden = false;
+    const shell = document.getElementById("appShell");
+    shell.hidden = false;
+    const bottomNav = document.querySelector(".tg-bottom-nav");
+    const isGuestCatalog = !state.isVerified && tabName === "articles";
+    shell.classList.toggle("guest-articles-mode", isGuestCatalog);
+    if (bottomNav) bottomNav.hidden = isGuestCatalog;
     document.querySelectorAll(".tab-panel").forEach((panel) => {
       panel.classList.toggle("active", panel.id === `tab-${tabName}`);
     });
@@ -548,12 +559,16 @@
     const metaEl = document.getElementById("readArticleMeta");
     const bodyEl = document.getElementById("readArticleBody");
 
-    // ONLY ONE button (Home) for verified users, ZERO buttons for unverified/guests
-    homeBtn.hidden = !state.isVerified;
+    // Back button is always visible (returns to previous article or public catalog)
+    homeBtn.hidden = false;
+    const backTitle = state.navStack.length > 0 ? "Назад" : "До каталогу артиклів";
+    homeBtn.setAttribute("title", backTitle);
+    homeBtn.setAttribute("aria-label", backTitle);
 
     let art = (state.articles || []).find(
       (a) => a && ((a.slug && a.slug.toLowerCase() === slug.toLowerCase()) || a.id === slug),
     );
+    let privateBlocked = false;
 
     if (!art) {
       showLoader(true);
@@ -563,12 +578,29 @@
           art = res.article;
           if (typeof res.isVerified === "boolean") {
             state.isVerified = res.isVerified;
-            homeBtn.hidden = !state.isVerified;
           }
+        } else if (res && res.error === "private_article") {
+          privateBlocked = true;
         }
       } catch {} finally {
         showLoader(false);
       }
+    }
+
+    if (privateBlocked) {
+      readerPage.hidden = false;
+      subjEl.hidden = true;
+      titleEl.textContent = "Закритий артикль";
+      metaEl.textContent = "Доступ лише для зареєстрованих учасників групи";
+      const bot = state.botUsername || "ES61bot";
+      bodyEl.innerHTML = `
+        <div class="article-private-notice">
+          <p>Цей артикль закритий і доступний лише зареєстрованим учасникам групи ЕС-61 у Telegram Mini App.</p>
+          <a class="tg-btn tg-btn-primary" href="https://t.me/${escapeAttr(bot)}?startapp=${escapeAttr(slug)}" target="_blank" rel="noopener noreferrer">Відкрити в Telegram (@${escapeHtml(bot)})</a>
+        </div>
+      `;
+      window.scrollTo(0, 0);
+      return;
     }
 
     if (!art) {
@@ -580,7 +612,7 @@
         subjEl.hidden = true;
         titleEl.textContent = "Артикль не знайдено";
         metaEl.textContent = "";
-        bodyEl.innerHTML = "<p>Перевірте правильність посилання.</p>";
+        bodyEl.innerHTML = "<p>Перевірте правильність посилання або поверніться до каталогу публічних артиклів.</p>";
       }
       return;
     }
@@ -678,6 +710,13 @@
     document.getElementById("editArticleTitle").value = art ? art.title : "";
     document.getElementById("editArticleAuthor").value = art ? art.author || "" : defaultAuthor;
     populateSubjectSelect(document.getElementById("editArticleSubject"), art ? art.subject || "" : "");
+    const pinCb = document.getElementById("editArticlePinned");
+    const pubCb = document.getElementById("editArticlePublic");
+    if (pinCb) pinCb.checked = Boolean(art && art.isPinned);
+    if (pubCb) {
+      pubCb.checked = art ? art.isPublic !== false : true;
+      updateArticlePublicToggleLabel();
+    }
 
     const bodyEl = document.getElementById("editArticleBody");
     bodyEl.innerHTML = art ? art.contentHtml || "" : "";
@@ -709,6 +748,14 @@
       return navigateTo("/home", true);
     }
 
+    // Public articles catalog is accessible to unregistered guests too (public articles only)
+    if (pathname === "/articles") {
+      document.title = state.isVerified ? "ЕС-61 · Веб-додаток" : "Артиклі · ЕС-61";
+      showMainTab("articles");
+      renderArticles();
+      return;
+    }
+
     // Standard verified app routes
     if (APP_ROUTES.has(pathname)) {
       if (!state.isVerified) return renderGuestGate();
@@ -718,7 +765,6 @@
       if (tab === "home") renderHome();
       else if (tab === "schedule") renderSchedule();
       else if (tab === "tasks") renderTasks();
-      else if (tab === "articles") renderArticles();
       else if (tab === "users") { if (!state.isAdmin) { navigateTo("/home", true); return; } renderUsers(); }
       else if (tab === "profile") renderProfile();
       else if (tab === "ai") openAiChatPage();
@@ -1468,7 +1514,13 @@
   // ==================== ARTICLES LIST ====================
   function renderArticles() {
     document.getElementById("newArticleBtn").hidden = !state.isAdmin;
-    const allArticles = state.articles || [];
+    const rawArticles = (state.articles || []).filter((a) => state.isVerified || (a && a.isPublic !== false));
+    const allArticles = [...rawArticles].sort((a, b) => {
+      const pinDiff = (b && b.isPinned ? 1 : 0) - (a && a.isPinned ? 1 : 0);
+      if (pinDiff !== 0) return pinDiff;
+      return Number((b && (b.updatedAt || b.createdAt)) || 0) - Number((a && (a.updatedAt || a.createdAt)) || 0);
+    });
+
     renderSubjectFilterStrip(
       document.getElementById("articlesSubjectFilter"),
       allArticles,
@@ -1489,24 +1541,35 @@
     if (!list.length) {
       container.innerHTML = `<div class="tg-empty-state">${
         state.isAdmin
-          ? "Артиклів ще немає. Натисніть «Створити артикль»!"
-          : "Артиклів поки немає."
+          ? "Артиклів ще немає. Натисніть «Створити»!"
+          : state.isVerified
+            ? "Артиклів поки немає."
+            : "Публічних артиклів поки немає."
       }</div>`;
       return;
     }
 
+    const pinSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
+    const lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+
     for (const art of list) {
       const card = document.createElement("div");
-      card.className = "article-card";
+      card.className = `article-card${art.isPinned ? " is-pinned" : ""}`;
       const tmp = document.createElement("div");
       tmp.innerHTML = art.contentHtml || "";
       const plain = (tmp.textContent || "").trim().slice(0, 140);
       const dateStr = art.updatedAt ? new Date(art.updatedAt).toLocaleDateString("uk-UA") : "";
       const slug = art.slug || art.id;
+      const isPrivate = art.isPublic === false;
+
+      const badges = [];
+      if (art.isPinned) badges.push(`<span class="article-pin-badge">${pinSvg}<span>Закріплено</span></span>`);
+      if (isPrivate) badges.push(`<span class="article-private-badge">${lockSvg}<span>Закритий</span></span>`);
+      if (art.subject) badges.push(`<span class="subject-tag-pill">${escapeHtml(art.subject)}</span>`);
 
       card.innerHTML = `
         <div class="article-card-main" data-open-slug="${escapeAttr(slug)}">
-          ${art.subject ? `<span class="subject-tag-pill">${escapeHtml(art.subject)}</span>` : ""}
+          ${badges.length ? `<div class="article-badges-row">${badges.join("")}</div>` : ""}
           <div class="article-card-title">${escapeHtml(art.title)}</div>
           <div class="article-card-slug">/${escapeHtml(slug)}</div>
           <div class="meta-sub">${escapeHtml(art.author || "Адміністратор")}${dateStr ? ` · ${dateStr}` : ""}</div>
@@ -1516,7 +1579,8 @@
           <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-copy-slug="${escapeAttr(slug)}">${ICONS.link}<span>Посилання</span></button>
           ${
             state.isAdmin
-              ? `<button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-edit-slug="${escapeAttr(slug)}">${ICONS.edit}<span>Редагувати</span></button>
+              ? `<button type="button" class="tg-btn tg-btn-secondary tg-btn-sm${art.isPinned ? " is-active-pin" : ""}" data-pin-article="${escapeAttr(art.id)}" title="${art.isPinned ? "Відкріпити" : "Закріпити зверху"}">${pinSvg}<span>${art.isPinned ? "Відкріпити" : "Закріпити"}</span></button>
+                 <button type="button" class="tg-btn tg-btn-secondary tg-btn-sm" data-edit-slug="${escapeAttr(slug)}">${ICONS.edit}<span>Редагувати</span></button>
                  <button type="button" class="tg-btn tg-btn-danger tg-btn-sm" data-del-article="${escapeAttr(art.id)}">${ICONS.trash}<span>Видалити</span></button>`
               : ""
           }
@@ -1540,6 +1604,26 @@
           showToast(isTelegramMiniApp() ? "Telegram-посилання скопійовано!" : "Посилання скопійовано!");
         } catch {
           showToast(url);
+        }
+      });
+    });
+    container.querySelectorAll("[data-pin-article]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-pin-article");
+        btn.disabled = true;
+        try {
+          const res = await apiFetch("/api/articles/toggle-pin", {
+            method: "POST",
+            body: JSON.stringify({ id }),
+          });
+          if (!res.ok) throw new Error(res.error || "Помилка");
+          state.articles = res.articles || [];
+          haptic("light");
+          renderArticles();
+          showToast(res.article?.isPinned ? "Артикль закріплено зверху" : "Артикль відкріплено");
+        } catch (err) {
+          btn.disabled = false;
+          showToast(err.message);
         }
       });
     });
@@ -2480,7 +2564,17 @@
 
   document.getElementById("articleHomeBtn").addEventListener("click", () => {
     haptic("light");
-    navigateTo("/articles");
+    while (state.navStack.length > 0) {
+      const prev = state.navStack.pop();
+      if (!prev || prev === getNormalizedPath()) continue;
+      // For unregistered guests, skip private app routes and go to public /articles or another article
+      if (!state.isVerified && APP_ROUTES.has(prev) && prev !== "/articles") {
+        continue;
+      }
+      navigateTo(prev, false, { isBack: true });
+      return;
+    }
+    navigateTo("/articles", false, { isBack: true });
   });
 
   // Guest Gate Listeners
@@ -2935,14 +3029,161 @@
   state.pendingAiImageDataUrl = "";
   state.aiBusy = false;
 
+  function buildAiAnchorHtml(rawUrl, rawLabel) {
+    const cleanUrl = String(rawUrl || "").trim();
+    const labelHtml = rawLabel || escapeHtml(cleanUrl);
+    if (!cleanUrl || /^javascript:/i.test(cleanUrl)) return labelHtml;
+    const internalRoute = extractInternalRoute(cleanUrl);
+    if (internalRoute) {
+      const resolved = resolveSmartRouteUrl(internalRoute);
+      return `<a href="${escapeAttr(resolved)}" data-internal-route="${escapeAttr(internalRoute)}">${labelHtml}</a>`;
+    }
+    if (/^(https?:|mailto:|tg:)/i.test(cleanUrl)) {
+      return `<a href="${escapeAttr(cleanUrl)}" target="_blank" rel="noopener noreferrer">${labelHtml}</a>`;
+    }
+    return labelHtml;
+  }
+
+  function formatAiInlineMarkdown(escapedText) {
+    const tokens = [];
+    const pushToken = (html) => {
+      const idx = tokens.length;
+      tokens.push(html);
+      return `\u0000AI_TOK_${idx}\u0000`;
+    };
+
+    let s = String(escapedText || "");
+
+    // 1. Inline code `...`
+    s = s.replace(/`([^`\n]+)`/g, (_m, code) => pushToken(`<code class="ai-inline-code">${code}</code>`));
+
+    // 2. Markdown hyperlinks [label](url)
+    s = s.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (_m, label, url) => {
+      const decodedUrl = url.replace(/&amp;/g, "&");
+      const formattedLabel = label
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/(^|[^\w])\*([^\s*][^*]*?)\*(?!\w)/g, "$1<em>$2</em>");
+      return pushToken(buildAiAnchorHtml(decodedUrl, formattedLabel));
+    });
+
+    // 3. Bare URLs https://... or http://...
+    s = s.replace(/\b(https?:\/\/[^\s<>()]+[^\s<>().,!?;:])/gi, (m) => {
+      const decodedUrl = m.replace(/&amp;/g, "&");
+      return pushToken(buildAiAnchorHtml(decodedUrl, m));
+    });
+
+    // 4. Telegram @username handles
+    s = s.replace(/(^|[\s(])@([a-zA-Z][a-zA-Z0-9_]{3,31})\b/g, (_m, lead, uname) => {
+      return `${lead}${pushToken(buildAiAnchorHtml(`https://t.me/${uname}`, `@${uname}`))}`;
+    });
+
+    // 5. Bold **...** and __...__
+    s = s.replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/__([^_\n]+?)__/g, "<strong>$1</strong>");
+
+    // 6. Strikethrough ~~...~~
+    s = s.replace(/~~([^~\n]+?)~~/g, "<del>$1</del>");
+
+    // 7. Italic *...* and _..._
+    s = s.replace(/(^|[^*\w])\*([^\s*\n](?:[^*\n]*?[^\s*\n])?)\*(?!\w)/g, "$1<em>$2</em>");
+    s = s.replace(/(^|[^_\w])_([^\s_\n](?:[^_\n]*?[^\s_\n])?)_(?!\w)/g, "$1<em>$2</em>");
+
+    // Restore protected tokens
+    s = s.replace(/\u0000AI_TOK_(\d+)\u0000/g, (_m, idx) => tokens[Number(idx)] || "");
+    return s;
+  }
+
   function formatAiTextHtml(rawText) {
-    const escaped = escapeHtml(String(rawText || ""));
-    return escaped
-      .replace(/`([^`]+)`/g, "<code>$1</code>")
-      .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
-      .split(/\n{2,}/)
-      .map((para) => `<p>${para.replace(/\n/g, "<br>")}</p>`)
-      .join("");
+    const src = String(rawText || "").replace(/\r\n?/g, "\n");
+    const codeBlocks = [];
+    const withPlaceholders = src.replace(/```(?:[a-zA-Z0-9_+-]+)?\n?([\s\S]*?)```/g, (_m, code) => {
+      const idx = codeBlocks.length;
+      codeBlocks.push(`<pre class="ai-code-block"><code>${escapeHtml(code.replace(/\n$/, ""))}</code></pre>`);
+      return `\n\n@@AI_CODEBLOCK_${idx}@@\n\n`;
+    });
+
+    const lines = withPlaceholders.split("\n");
+    const out = [];
+    let listType = null;
+    let paraLines = [];
+
+    const flushPara = () => {
+      if (!paraLines.length) return;
+      out.push(`<p>${paraLines.map((l) => formatAiInlineMarkdown(escapeHtml(l))).join("<br>")}</p>`);
+      paraLines = [];
+    };
+    const flushList = () => {
+      if (!listType) return;
+      out.push(`</${listType}>`);
+      listType = null;
+    };
+
+    for (const rawLine of lines) {
+      const line = rawLine.trimEnd();
+      const trimmed = line.trim();
+
+      const cbMatch = trimmed.match(/^@@AI_CODEBLOCK_(\d+)@@$/);
+      if (cbMatch) {
+        flushPara();
+        flushList();
+        out.push(codeBlocks[Number(cbMatch[1])] || "");
+        continue;
+      }
+
+      if (!trimmed) {
+        flushPara();
+        flushList();
+        continue;
+      }
+
+      const hMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+      if (hMatch) {
+        flushPara();
+        flushList();
+        const tag = hMatch[1].length <= 2 ? "h3" : "h4";
+        out.push(`<${tag}>${formatAiInlineMarkdown(escapeHtml(hMatch[2]))}</${tag}>`);
+        continue;
+      }
+
+      const qMatch = trimmed.match(/^>\s?(.*)$/);
+      if (qMatch) {
+        flushPara();
+        flushList();
+        out.push(`<blockquote>${formatAiInlineMarkdown(escapeHtml(qMatch[1]))}</blockquote>`);
+        continue;
+      }
+
+      const ulMatch = trimmed.match(/^[-*•]\s+(.+)$/);
+      if (ulMatch) {
+        flushPara();
+        if (listType !== "ul") {
+          flushList();
+          listType = "ul";
+          out.push("<ul>");
+        }
+        out.push(`<li>${formatAiInlineMarkdown(escapeHtml(ulMatch[1]))}</li>`);
+        continue;
+      }
+
+      const olMatch = trimmed.match(/^\d+\.\s+(.+)$/);
+      if (olMatch) {
+        flushPara();
+        if (listType !== "ol") {
+          flushList();
+          listType = "ol";
+          out.push("<ol>");
+        }
+        out.push(`<li>${formatAiInlineMarkdown(escapeHtml(olMatch[1]))}</li>`);
+        continue;
+      }
+
+      flushList();
+      paraLines.push(line);
+    }
+
+    flushPara();
+    flushList();
+    return out.join("");
   }
 
   function formatRelativeShort(ts) {
@@ -3791,10 +4032,21 @@
 
 
 
+  function updateArticlePublicToggleLabel() {
+    const cb = document.getElementById("editArticlePublic");
+    const lbl = document.getElementById("editArticlePublicLabel");
+    if (!cb || !lbl) return;
+    lbl.textContent = cb.checked ? "Публічний (для всіх)" : "Закритий (лише зареєстрованим)";
+  }
+
+  document.getElementById("editArticlePublic")?.addEventListener("change", updateArticlePublicToggleLabel);
+
   document.getElementById("saveArticleBtn").addEventListener("click", async () => {
     const title = document.getElementById("editArticleTitle").value.trim();
     const author = document.getElementById("editArticleAuthor").value.trim();
     const subject = document.getElementById("editArticleSubject").value;
+    const isPinned = Boolean(document.getElementById("editArticlePinned")?.checked);
+    const isPublic = document.getElementById("editArticlePublic") ? Boolean(document.getElementById("editArticlePublic").checked) : true;
     const ed = document.getElementById("editArticleBody");
 
     // Normalize relative /api/media/ src attributes before saving
@@ -3829,7 +4081,7 @@
     try {
       const res = await apiFetch("/api/articles", {
         method: "POST",
-        body: JSON.stringify({ id: state.activeArticleId, title, author, subject, contentHtml }),
+        body: JSON.stringify({ id: state.activeArticleId, title, author, subject, contentHtml, isPinned, isPublic }),
       });
       if (!res.ok) throw new Error(res.error || "Помилка збереження");
       state.articles = res.articles || [];

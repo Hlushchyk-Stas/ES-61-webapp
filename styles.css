@@ -2309,3 +2309,196 @@ html[data-theme="dark"] .role-badge-yellow {
   background: var(--tg-red-soft);
   color: var(--tg-red);
 }
+
+
+/* ==================== ARTICLE PIN & VISIBILITY + AI MARKDOWN (v6.5) ==================== */
+.editor-meta-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 10px;
+}
+
+.editor-toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--tg-sec-bg, rgba(128, 128, 128, 0.1));
+  border: 1px solid var(--tg-border, rgba(128, 128, 128, 0.18));
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tg-text);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.editor-toggle-pill input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--tg-accent, #2481cc);
+  cursor: pointer;
+}
+
+.article-card.is-pinned {
+  border-color: rgba(36, 129, 204, 0.45);
+  box-shadow: 0 2px 10px rgba(36, 129, 204, 0.08);
+}
+
+.article-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.article-badges-row .subject-tag-pill {
+  margin-bottom: 0;
+}
+
+.article-pin-badge,
+.article-private-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.article-pin-badge {
+  background: rgba(36, 129, 204, 0.14);
+  color: var(--tg-accent, #2481cc);
+}
+
+.article-private-badge {
+  background: rgba(239, 68, 68, 0.13);
+  color: #e03e3e;
+}
+
+.article-pin-badge svg,
+.article-private-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+.article-card-actions .tg-btn.is-active-pin {
+  background: rgba(36, 129, 204, 0.16);
+  color: var(--tg-accent, #2481cc);
+}
+
+/* Guest public catalog layout without bottom nav */
+#appShell.guest-articles-mode {
+  padding-bottom: 24px;
+}
+
+.article-private-notice {
+  padding: 18px 16px;
+  border-radius: 14px;
+  background: var(--tg-sec-bg, rgba(128, 128, 128, 0.09));
+  border: 1px solid var(--tg-border, rgba(128, 128, 128, 0.18));
+  text-align: center;
+}
+
+.article-private-notice p {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--tg-hint);
+}
+
+/* AI Rich Markdown Styling */
+.ai-turn-model p {
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.ai-turn-model p:last-child {
+  margin-bottom: 0;
+}
+
+.ai-turn-model h3,
+.ai-turn-model h4 {
+  margin: 10px 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.ai-turn-model h3:first-child,
+.ai-turn-model h4:first-child {
+  margin-top: 0;
+}
+
+.ai-turn-model ul,
+.ai-turn-model ol {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+}
+
+.ai-turn-model li {
+  margin: 3px 0;
+  line-height: 1.45;
+}
+
+.ai-turn-model blockquote {
+  margin: 6px 0 8px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--tg-accent, #2481cc);
+  background: rgba(36, 129, 204, 0.08);
+  border-radius: 0 8px 8px 0;
+  color: var(--tg-text);
+}
+
+.ai-turn-model a {
+  color: var(--tg-accent, #2481cc);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-word;
+}
+
+.ai-turn-model strong,
+.ai-turn-model b {
+  font-weight: 700;
+}
+
+.ai-turn-model em,
+.ai-turn-model i {
+  font-style: italic;
+}
+
+.ai-turn-model del {
+  opacity: 0.72;
+  text-decoration: line-through;
+}
+
+.ai-turn-model code.ai-inline-code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(128, 128, 128, 0.16);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.ai-turn-model pre.ai-code-block {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.14);
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.ai-turn-model pre.ai-code-block code {
+  background: transparent;
+  padding: 0;
+}
