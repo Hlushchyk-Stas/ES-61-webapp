@@ -2023,3 +2023,156 @@ html[data-theme="dark"] .role-badge-yellow {
   opacity: 0.45;
   cursor: default;
 }
+
+/* ==================== SMOOTH NATIVE-STYLE UI ANIMATIONS ==================== */
+@keyframes uiFadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes uiFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes uiModalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes uiDrawerSlideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes uiToastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes uiLivePulse {
+  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+  70% { box-shadow: 0 0 0 7px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+/* Tab & Full-Screen Page Entrances */
+.tab-panel.active {
+  animation: uiFadeSlideUp 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ai-app-page:not([hidden]),
+.telegraph-reader-page:not([hidden]),
+.telegraph-page:not([hidden]),
+.guest-gate:not([hidden]) {
+  animation: uiFadeIn 0.2s ease both;
+}
+
+/* Modals & AI Slide-Out Drawer */
+.tg-modal-backdrop:not([hidden]) {
+  animation: uiFadeIn 0.16s ease both;
+}
+
+.tg-modal-backdrop:not([hidden]) .tg-modal {
+  animation: uiModalPop 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ai-drawer-backdrop:not([hidden]) {
+  animation: uiFadeIn 0.18s ease both;
+}
+
+.ai-drawer-backdrop:not([hidden]) .ai-drawer-panel {
+  animation: uiDrawerSlideIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Staggered Card Reveals */
+.home-tile,
+.lesson-card,
+.task-card,
+.article-card,
+.user-card,
+.dir-subject-card,
+.cl-card,
+.next-lesson-card {
+  animation: uiFadeSlideUp 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.home-tile:nth-child(2), .lesson-card:nth-child(2), .task-card:nth-child(2), .article-card:nth-child(2), .user-card:nth-child(2), .dir-subject-card:nth-child(2) { animation-delay: 25ms; }
+.home-tile:nth-child(3), .lesson-card:nth-child(3), .task-card:nth-child(3), .article-card:nth-child(3), .user-card:nth-child(3), .dir-subject-card:nth-child(3) { animation-delay: 50ms; }
+.home-tile:nth-child(4), .lesson-card:nth-child(4), .task-card:nth-child(4), .article-card:nth-child(4), .user-card:nth-child(4), .dir-subject-card:nth-child(4) { animation-delay: 75ms; }
+.home-tile:nth-child(5), .lesson-card:nth-child(5), .task-card:nth-child(5), .article-card:nth-child(5), .user-card:nth-child(5), .dir-subject-card:nth-child(5) { animation-delay: 100ms; }
+.home-tile:nth-child(6), .lesson-card:nth-child(6), .task-card:nth-child(6), .article-card:nth-child(6), .user-card:nth-child(6), .dir-subject-card:nth-child(6) { animation-delay: 125ms; }
+.home-tile:nth-child(7), .lesson-card:nth-child(7), .task-card:nth-child(7), .article-card:nth-child(7), .user-card:nth-child(7), .dir-subject-card:nth-child(7) { animation-delay: 150ms; }
+
+/* AI Chat Bubbles & Attachment Preview */
+.ai-turn-user,
+.ai-turn-model,
+.ai-empty-hero,
+.ai-attach-preview:not([hidden]) {
+  animation: uiFadeSlideUp 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Live Current Class Pulse */
+.home-live-dot {
+  animation: uiLivePulse 1.8s infinite ease-out;
+}
+
+/* Toast Entrance */
+.tg-toast:not([hidden]) {
+  animation: uiToastIn 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Tactile Press Transitions */
+.tg-btn,
+.home-tile,
+.day-pill,
+.week-btn,
+.bottom-nav-btn,
+.ai-suggestion-chip,
+.ai-send-circle,
+.ai-hdr-btn,
+.ai-new-chat-btn,
+.dir-lecturer-btn,
+.dir-subject-head-btn,
+.theme-seg-btn {
+  transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, opacity 0.16s ease;
+}
+
+.tg-btn:active,
+.home-tile:active,
+.day-pill:active,
+.week-btn:active,
+.bottom-nav-btn:active,
+.ai-suggestion-chip:active,
+.ai-send-circle:active,
+.ai-hdr-btn:active,
+.ai-new-chat-btn:active,
+.dir-lecturer-btn:active {
+  transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
